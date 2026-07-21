@@ -25,6 +25,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .cg label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
 .cg input[type=text]{background:var(--input);border:1px solid var(--border);color:var(--bright);padding:7px 10px;border-radius:4px;font-family:inherit;font-size:14px;outline:none;transition:border .2s}
 .cg input[type=text]:focus{border-color:var(--active)}
+.hint-text{font-size:10px;color:var(--dim);opacity:.7;line-height:1.3}
 .cg input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--input);border-radius:3px;outline:none;cursor:pointer}
 .cg input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--active);cursor:pointer;border:2px solid var(--bg)}
 .cg input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--active);cursor:pointer;border:2px solid var(--bg)}
@@ -48,14 +49,24 @@ select:focus{border-color:var(--active)}
 .stat .sl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
 .stat .sv{font-size:18px;font-weight:700;color:var(--bright);margin-top:2px}
 #canvas-container{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;padding:12px;position:relative}
-#grid-canvas{image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%;max-height:100%;aspect-ratio:1;border-radius:2px;cursor:crosshair}
-.hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--dim);background:rgba(13,10,8,.85);padding:4px 12px;border-radius:3px;pointer-events:none;opacity:.7}
+#grid-canvas{
+  image-rendering:pixelated;
+  image-rendering:crisp-edges;
+  width:min(calc(100vw - 314px),calc(100vh - 24px));
+  height:min(calc(100vw - 314px),calc(100vh - 24px));
+  border-radius:2px;cursor:crosshair;
+}
+.canvas-hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--dim);background:rgba(13,10,8,.85);padding:4px 12px;border-radius:3px;pointer-events:none;opacity:.7;white-space:nowrap}
 #mobile-toggle{display:none;position:fixed;top:8px;left:8px;z-index:20;width:36px;height:36px;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:18px;cursor:pointer;align-items:center;justify-content:center}
 @media(max-width:768px){
   #mobile-toggle{display:flex}
   #panel{position:fixed;top:0;left:0;height:100%;transform:translateX(-100%);transition:transform .25s ease}
   #panel.open{transform:translateX(0)}
   #canvas-container{width:100%;padding:8px;padding-top:48px}
+  #grid-canvas{
+    width:min(calc(100vw - 16px),calc(100vh - 56px));
+    height:min(calc(100vw - 16px),calc(100vh - 56px));
+  }
 }
 </style>
 </head>
@@ -68,6 +79,7 @@ select:focus{border-color:var(--active)}
   <div class="cg">
     <label>Текст (до 12 символов)</label>
     <input type="text" id="textInput" maxlength="12" value="ОРНАМЕНТ" spellcheck="false" autocomplete="off">
+    <small class="hint-text">символи заповнюють трикутник від центру, як мозаїка</small>
   </div>
 
   <div class="cg">
@@ -139,13 +151,12 @@ select:focus{border-color:var(--active)}
 
 <main id="canvas-container">
   <canvas id="grid-canvas"></canvas>
-  <div class="hint">Клик — рисовать, Alt+клик — стирать</div>
+  <div class="canvas-hint">Клик — рисовать, Alt+клик — стереть</div>
 </main>
 </div>
 
 <script>
 /* ===== БИТМАП-ШРИФТ 5x7 ===== */
-/* Каждый символ — массив из 7 чисел, каждое число — 5 бит (bit4=левый столбец) */
 const FONT={
 A:[14,17,17,31,17,17,17],B:[30,17,17,30,17,17,30],C:[15,16,16,16,16,16,15],
 D:[30,17,17,17,17,17,30],E:[31,16,16,30,16,16,31],F:[31,16,16,30,16,16,16],
@@ -163,7 +174,6 @@ Y:[17,17,10,4,4,4,4],Z:[31,1,2,4,8,16,31],
 ' ':[0,0,0,0,0,0,0],'.':[0,0,0,0,0,0,4],',':[0,0,0,0,0,4,8],
 '-':[0,0,0,14,0,0,0],'!':[4,4,4,4,4,0,4],'?':[14,17,1,2,4,0,4],
 ':':[0,0,4,0,4,0,0],
-// Кириллица
 А:[14,17,17,31,17,17,17],Б:[30,16,30,17,17,17,30],В:[30,17,17,30,17,17,30],
 Г:[31,16,16,16,16,16,16],Д:[6,9,17,17,17,17,31],Е:[31,16,16,30,16,16,31],
 Ё:[20,0,31,16,30,16,31],Ж:[21,21,10,4,10,21,21],З:[15,1,1,6,1,1,15],
@@ -178,7 +188,7 @@ Y:[17,17,10,4,4,4,4],Z:[31,1,2,4,8,16,31],
 };
 function charPattern(ch){return FONT[ch.toUpperCase()]||FONT[' ']}
 
-/* ===== ПРАВИЛА АВТОМАТА (битовые маски) ===== */
+/* ===== ПРАВИЛА АВТОМАТА ===== */
 function mkMask(b,s){let bm=0,sm=0;for(const n of b)bm|=1<<n;for(const n of s)sm|=1<<n;return{bm,sm}}
 const RULES={
   conway:mkMask([3],[2,3]),
@@ -188,15 +198,13 @@ const RULES={
   maze:mkMask([3],[1,2,3,4,5])
 };
 
-/* ===== ЦВЕТОВАЯ LUT (возраст → RGB) ===== */
+/* ===== ЦВЕТОВАЯ LUT ===== */
 const CLR=new Uint8Array(256*3);
-(function buildLUT(){
-  // Фон (возраст 0)
+(function(){
   CLR[0]=13;CLR[1]=10;CLR[2]=8;
-  // Молодые: #e8c890=(232,200,144), Старые: #8f7451=(143,116,81)
   for(let a=1;a<256;a++){
     const t=Math.min((a-1)/49,1);
-    const e=1-Math.pow(1-t,0.6); // нелинейная кривая выгорания
+    const e=1-Math.pow(1-t,0.6);
     CLR[a*3]  =Math.round(232+(143-232)*e);
     CLR[a*3+1]=Math.round(200+(116-200)*e);
     CLR[a*3+2]=Math.round(144+(81-144)*e);
@@ -242,40 +250,81 @@ function setSym(px,py,cx,cy){
   }
 }
 
-function seedFromText(text){
-  clearGrid();
-  if(!text.trim())return;
-  const sc=fontScale;
-  const cw=5*sc, ch=7*sc, sp=sc;
-  const chars=[];
-  for(const c of text)chars.push(charPattern(c));
-  const tw=chars.length*(cw+sp)-sp;
-  const th=ch;
-  const cx=Math.floor(gridSize/2);
-  const cy=Math.floor(gridSize/2);
-
-  // Область размещения
-  let rx,ry,rw,rh;
-  if(symmetry==='row'){rx=0;ry=0;rw=gridSize;rh=gridSize}
-  else if(symmetry==='mirrors'){rx=cx;ry=0;rw=gridSize-cx;rh=gridSize}
-  else{rx=cx;ry=0;rw=gridSize-cx;rh=cy}
-
-  const sx=rx+Math.floor((rw-tw)/2);
-  const sy=ry+Math.floor((rh-th)/2);
-
-  for(let ci=0;ci<chars.length;ci++){
-    const pat=chars[ci];
-    const ox=sx+ci*(cw+sp);
-    for(let row=0;row<7;row++){
-      for(let col=0;col<5;col++){
-        if(pat[row]&(1<<(4-col))){
-          for(let sy2=0;sy2<sc;sy2++){
-            for(let sx2=0;sx2<sc;sx2++){
-              setSym(ox+col*sc+sx2, sy+row*sc+sy2, cx, cy);
+/* Вспомогательная: отрисовка глифа по базовым координатам */
+function placeGlyph(pat,bx,by,sc,useSym,cx,cy){
+  for(let r=0;r<7;r++){
+    for(let c=0;c<5;c++){
+      if(pat[r]&(1<<(4-c))){
+        for(let dy=0;dy<sc;dy++){
+          for(let dx=0;dx<sc;dx++){
+            const px=bx+c*sc+dx;
+            const py=by+r*sc+dy;
+            if(px>=0&&px<gridSize&&py>=0&&py<gridSize){
+              if(useSym) setSym(px,py,cx,cy);
+              else grid[py*gridSize+px]=1;
             }
           }
         }
       }
+    }
+  }
+}
+
+function seedFromText(text){
+  clearGrid();
+  if(!text.trim())return;
+  const sc=fontScale;
+  const cellSize=7*sc; /* размер ячейки сетки (ширина = высота = 7 строк × масштаб) */
+  const step=cellSize;  /* зазор 0 — ячейки соприкасаются краями */
+  const cx=Math.floor(gridSize/2);
+  const cy=Math.floor(gridSize/2);
+
+  const chars=[];
+  for(const c of text)chars.push(charPattern(c));
+
+  if(symmetry==='row'){
+    /* Построчное размещение без симметрии */
+    const cw=5*sc, ch=7*sc, sp=sc;
+    const tw=chars.length*(cw+sp)-sp;
+    const sx=Math.floor((gridSize-tw)/2);
+    const sy=Math.floor((gridSize-ch)/2);
+    for(let ci=0;ci<chars.length;ci++){
+      placeGlyph(chars[ci], sx+ci*(cw+sp), sy, sc, false, cx, cy);
+    }
+  }else{
+    /* Сеточное размещение в секторе: octant (треугольник) или mirrors (четверть) */
+    const isOctant=(symmetry==='octant');
+    const maxCol=Math.floor((gridSize-1-cx)/step);
+    const maxRow=Math.floor((cy-1)/step);
+
+    /* Собираем ячейки, целиком лежащие внутри сектора */
+    const cells=[];
+    for(let row=0;row<=maxRow;row++){
+      for(let col=0;col<=maxCol;col++){
+        /* Ячейка должна помещаться в поле */
+        if(cx+col*step+cellSize-1>=gridSize)continue;
+        if(cy-(row+1)*step<0)continue;
+        /* Для октанта: вся ячейка строго выше диагонали dx=|dy|.
+           Ближайший к диагонали пиксель ячейки — левый нижний угол:
+           dx = col*step, |dy| = row*step+1.
+           Условие: col*step > row*step+1 */
+        if(isOctant && col*step<=row*step+1)continue;
+        cells.push({col,row,layer:col+row});
+      }
+    }
+
+    /* Сортировка по диагональным слоям от центра (col+row),
+       внутри слоя — по row (от нижнего края к верхнему) */
+    cells.sort((a,b)=>a.layer!==b.layer?a.layer-b.layer:a.row-b.row);
+
+    /* Размещаем символы по очереди в отсортированные ячейки */
+    let ci=0;
+    for(const cell of cells){
+      if(ci>=chars.length)break;
+      /* Базовые координаты ячейки: левый верхний угол */
+      const bx=cx+cell.col*step;
+      const by=cy-(cell.row+1)*step;
+      placeGlyph(chars[ci++], bx, by, sc, true, cx, cy);
     }
   }
 }
@@ -291,7 +340,6 @@ function step(){
     for(let x=0;x<N;x++){
       const xm=x===0?Nm1:x-1;
       const xp=x===Nm1?0:x+1;
-      // Подсчёт 8 соседей (тороидальные границы)
       let n=0;
       if(grid[ym*N+xm])n++;
       if(grid[ym*N+x])n++;
@@ -310,16 +358,14 @@ function step(){
       }
     }
   }
-  // Обмен буферов
   const tmp=grid;grid=nextGrid;nextGrid=tmp;
   generation++;
 }
 
 /* ===== РЕНДЕРИНГ ===== */
 function render(){
-  const N=gridSize;
   const d=imageData.data;
-  const len=N*N;
+  const len=gridSize*gridSize;
   for(let i=0;i<len;i++){
     const a=grid[i];
     const p=i*4;
@@ -392,7 +438,7 @@ function handleTouch(e){
 
 /* ===== ЭКСПОРТ PNG ===== */
 function exportPNG(){
-  const scale=Math.max(1,Math.floor(1024/gridSize));
+  const scale=Math.max(1,Math.floor(2048/gridSize));
   const ec=document.createElement('canvas');
   ec.width=gridSize*scale;ec.height=gridSize*scale;
   const ectx=ec.getContext('2d');
@@ -413,14 +459,12 @@ function reseed(){
 }
 
 /* ===== UI ПРИВЯЗКИ ===== */
-// Текстовый ввод — живое обновление
 document.getElementById('textInput').addEventListener('input',()=>{
   stopSim();
   seedFromText(document.getElementById('textInput').value);
   render();updateStats();
 });
 
-// Группы кнопок (сегментированные контролы)
 function setupBtnGroup(id,cb){
   const g=document.getElementById(id);
   g.querySelectorAll('button').forEach(btn=>{
@@ -435,17 +479,13 @@ setupBtnGroup('symGroup',v=>{symmetry=v;reseed()});
 setupBtnGroup('scaleGroup',v=>{fontScale=parseInt(v);reseed()});
 setupBtnGroup('drawGroup',v=>{drawMode=v});
 
-// Селектор правила
 document.getElementById('ruleSelect').addEventListener('change',e=>{
   ruleKey=e.target.value;
 });
 
-// Слайдеры
 const sizeSlider=document.getElementById('sizeSlider');
 const sizeVal=document.getElementById('sizeVal');
-sizeSlider.addEventListener('input',()=>{
-  sizeVal.textContent=sizeSlider.value;
-});
+sizeSlider.addEventListener('input',()=>{sizeVal.textContent=sizeSlider.value});
 sizeSlider.addEventListener('change',()=>{
   gridSize=parseInt(sizeSlider.value);
   stopSim();
@@ -461,7 +501,6 @@ speedSlider.addEventListener('input',()=>{
   speedVal.textContent=speed;
 });
 
-// Кнопки действий
 document.getElementById('btnStart').addEventListener('click',toggleSim);
 document.getElementById('btnStep').addEventListener('click',()=>{
   if(running)stopSim();
@@ -473,18 +512,13 @@ document.getElementById('btnClear').addEventListener('click',()=>{
 });
 document.getElementById('btnExport').addEventListener('click',exportPNG);
 
-// Мобильное меню
 document.getElementById('mobile-toggle').addEventListener('click',()=>{
   document.getElementById('panel').classList.toggle('open');
 });
-// Закрытие панели при клике на canvas (мобильные)
 canvas.addEventListener('click',()=>{
-  if(window.innerWidth<=768){
-    document.getElementById('panel').classList.remove('open');
-  }
+  if(window.innerWidth<=768)document.getElementById('panel').classList.remove('open');
 });
 
-// Горячие клавиши
 document.addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
   if(e.code==='Space'){e.preventDefault();toggleSim()}
