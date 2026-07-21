@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Клеточный орнамент</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0a08;--panel:#15100b;--border:#2a1f16;
+  --text:#c9a876;--bright:#e8c890;--dim:#8f7451;
+  --input:#1a1410;--btn:#2a1f16;--btn-h:#3a2f26;
+  --active:#c9a876;--active-t:#0d0a08;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px}
+#app{display:flex;height:100%;width:100%}
+#panel{width:290px;min-width:290px;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;z-index:10}
+#panel::-webkit-scrollbar{width:4px}
+#panel::-webkit-scrollbar-track{background:var(--panel)}
+#panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+#panel h1{font-size:15px;font-weight:700;color:var(--bright);letter-spacing:.5px;line-height:1.3}
+#panel h1 span{display:block;font-size:10px;font-weight:400;color:var(--dim);margin-top:2px;letter-spacing:0}
+.cg{display:flex;flex-direction:column;gap:5px}
+.cg label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+.cg input[type=text]{background:var(--input);border:1px solid var(--border);color:var(--bright);padding:7px 10px;border-radius:4px;font-family:inherit;font-size:14px;outline:none;transition:border .2s}
+.cg input[type=text]:focus{border-color:var(--active)}
+.cg input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--input);border-radius:3px;outline:none;cursor:pointer}
+.cg input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--active);cursor:pointer;border:2px solid var(--bg)}
+.cg input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--active);cursor:pointer;border:2px solid var(--bg)}
+.range-row{display:flex;align-items:center;gap:8px}
+.range-row span{font-size:12px;color:var(--bright);min-width:32px;text-align:right}
+.bg{display:flex;gap:0;border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+.bg button{flex:1;padding:6px 4px;background:var(--btn);color:var(--text);border:none;font-family:inherit;font-size:10px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.bg button:not(:last-child){border-right:1px solid var(--border)}
+.bg button:hover{background:var(--btn-h)}
+.bg button.on{background:var(--active);color:var(--active-t);font-weight:700}
+select{background:var(--input);border:1px solid var(--border);color:var(--bright);padding:6px 8px;border-radius:4px;font-family:inherit;font-size:12px;outline:none;cursor:pointer}
+select:focus{border-color:var(--active)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.actions button{padding:8px 6px;background:var(--btn);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:inherit;font-size:11px;cursor:pointer;transition:all .15s}
+.actions button:hover{background:var(--btn-h);border-color:var(--dim)}
+.actions button.wide{grid-column:1/-1}
+.actions button.primary{background:var(--active);color:var(--active-t);border-color:var(--active);font-weight:700}
+.actions button.primary:hover{background:var(--bright)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{background:var(--input);border:1px solid var(--border);border-radius:4px;padding:8px 10px}
+.stat .sl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+.stat .sv{font-size:18px;font-weight:700;color:var(--bright);margin-top:2px}
+#canvas-container{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;padding:12px;position:relative}
+#grid-canvas{image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%;max-height:100%;aspect-ratio:1;border-radius:2px;cursor:crosshair}
+.hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--dim);background:rgba(13,10,8,.85);padding:4px 12px;border-radius:3px;pointer-events:none;opacity:.7}
+#mobile-toggle{display:none;position:fixed;top:8px;left:8px;z-index:20;width:36px;height:36px;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:18px;cursor:pointer;align-items:center;justify-content:center}
+@media(max-width:768px){
+  #mobile-toggle{display:flex}
+  #panel{position:fixed;top:0;left:0;height:100%;transform:translateX(-100%);transition:transform .25s ease}
+  #panel.open{transform:translateX(0)}
+  #canvas-container{width:100%;padding:8px;padding-top:48px}
+}
+</style>
+</head>
+<body>
+<button id="mobile-toggle" aria-label="Меню">&#9776;</button>
+<div id="app">
+<aside id="panel">
+  <h1>Клеточный орнамент<span>Симметричный клеточный автомат</span></h1>
+
+  <div class="cg">
+    <label>Текст (до 12 символов)</label>
+    <input type="text" id="textInput" maxlength="12" value="ОРНАМЕНТ" spellcheck="false" autocomplete="off">
+  </div>
+
+  <div class="cg">
+    <label>Симметрия посева</label>
+    <div class="bg" id="symGroup">
+      <button data-v="octant" class="on">Октант x8</button>
+      <button data-v="mirrors">Дзеркала x4</button>
+      <button data-v="row">Рядок x1</button>
+    </div>
+  </div>
+
+  <div class="cg">
+    <label>Размер поля</label>
+    <div class="range-row">
+      <input type="range" id="sizeSlider" min="60" max="240" step="12" value="120">
+      <span id="sizeVal">120</span>
+    </div>
+  </div>
+
+  <div class="cg">
+    <label>Масштаб шрифта</label>
+    <div class="bg" id="scaleGroup">
+      <button data-v="1" class="on">1x</button>
+      <button data-v="2">2x</button>
+      <button data-v="3">3x</button>
+    </div>
+  </div>
+
+  <div class="cg">
+    <label>Правило автомата</label>
+    <select id="ruleSelect">
+      <option value="conway">Conway B3/S23</option>
+      <option value="highlife">HighLife B36/S23</option>
+      <option value="seeds">Seeds B2/S</option>
+      <option value="daynight">День и ночь B3678/S34678</option>
+      <option value="maze" selected>Лабиринт B3/S12345</option>
+    </select>
+  </div>
+
+  <div class="cg">
+    <label>Скорость (поколений/сек)</label>
+    <div class="range-row">
+      <input type="range" id="speedSlider" min="1" max="60" value="15">
+      <span id="speedVal">15</span>
+    </div>
+  </div>
+
+  <div class="cg">
+    <label>Режим рисования мышью</label>
+    <div class="bg" id="drawGroup">
+      <button data-v="draw" class="on">Рисование</button>
+      <button data-v="erase">Стирание</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="sl">Поколение</div><div class="sv" id="genCount">0</div></div>
+    <div class="stat"><div class="sl">Живых клеток</div><div class="sv" id="cellCount">0</div></div>
+  </div>
+
+  <div class="actions">
+    <button class="primary wide" id="btnStart">Старт</button>
+    <button id="btnStep">Шаг</button>
+    <button id="btnReseed">Пересеять</button>
+    <button id="btnClear">Очистить</button>
+    <button class="wide" id="btnExport">Экспорт PNG</button>
+  </div>
+</aside>
+
+<main id="canvas-container">
+  <canvas id="grid-canvas"></canvas>
+  <div class="hint">Клик — рисовать, Alt+клик — стирать</div>
+</main>
+</div>
+
+<script>
+/* ===== БИТМАП-ШРИФТ 5x7 ===== */
+/* Каждый символ — массив из 7 чисел, каждое число — 5 бит (bit4=левый столбец) */
+const FONT={
+A:[14,17,17,31,17,17,17],B:[30,17,17,30,17,17,30],C:[15,16,16,16,16,16,15],
+D:[30,17,17,17,17,17,30],E:[31,16,16,30,16,16,31],F:[31,16,16,30,16,16,16],
+G:[15,16,16,19,17,17,14],H:[17,17,17,31,17,17,17],I:[14,4,4,4,4,4,14],
+J:[7,2,2,2,2,18,12],K:[17,18,20,24,20,18,17],L:[16,16,16,16,16,16,31],
+M:[17,27,21,21,17,17,17],N:[17,25,21,19,17,17,17],O:[14,17,17,17,17,17,14],
+P:[30,17,17,30,16,16,16],Q:[14,17,17,17,21,18,13],R:[30,17,17,30,20,18,17],
+S:[15,16,16,14,1,1,30],T:[31,4,4,4,4,4,4],U:[17,17,17,17,17,17,14],
+V:[17,17,17,17,10,10,4],W:[17,17,17,21,21,21,10],X:[17,17,10,4,10,17,17],
+Y:[17,17,10,4,4,4,4],Z:[31,1,2,4,8,16,31],
+'0':[14,19,21,21,25,17,14],'1':[4,12,4,4,4,4,14],'2':[14,17,1,2,4,8,31],
+'3':[31,2,4,2,1,17,14],'4':[2,6,10,18,31,2,2],'5':[31,16,30,1,1,17,14],
+'6':[6,8,16,30,17,17,14],'7':[31,1,2,4,8,8,8],'8':[14,17,17,14,17,17,14],
+'9':[14,17,17,15,1,2,12],
+' ':[0,0,0,0,0,0,0],'.':[0,0,0,0,0,0,4],',':[0,0,0,0,0,4,8],
+'-':[0,0,0,14,0,0,0],'!':[4,4,4,4,4,0,4],'?':[14,17,1,2,4,0,4],
+':':[0,0,4,0,4,0,0],
+// Кириллица
+А:[14,17,17,31,17,17,17],Б:[30,16,30,17,17,17,30],В:[30,17,17,30,17,17,30],
+Г:[31,16,16,16,16,16,16],Д:[6,9,17,17,17,17,31],Е:[31,16,16,30,16,16,31],
+Ё:[20,0,31,16,30,16,31],Ж:[21,21,10,4,10,21,21],З:[15,1,1,6,1,1,15],
+И:[17,17,17,25,21,19,17],Й:[10,0,17,17,25,21,19],К:[17,18,20,24,20,18,17],
+Л:[6,9,17,17,17,17,17],М:[17,27,21,21,17,17,17],Н:[17,17,17,31,17,17,17],
+О:[14,17,17,17,17,17,14],П:[31,17,17,17,17,17,17],Р:[30,17,17,30,16,16,16],
+С:[15,16,16,16,16,16,15],Т:[31,4,4,4,4,4,4],У:[17,17,10,4,4,8,16],
+Ф:[10,21,31,31,31,21,10],Х:[17,17,10,4,10,17,17],Ц:[17,17,17,17,17,17,15],
+Ч:[17,17,17,15,1,1,1],Ш:[17,17,17,17,21,21,31],Щ:[17,17,21,21,21,31,1],
+Ъ:[16,16,30,18,17,17,30],Ы:[17,17,17,27,17,17,17],Ь:[16,16,30,17,17,17,30],
+Э:[14,16,16,14,16,16,14],Ю:[18,18,18,30,18,18,18],Я:[14,17,17,14,18,17,17]
+};
+function charPattern(ch){return FONT[ch.toUpperCase()]||FONT[' ']}
+
+/* ===== ПРАВИЛА АВТОМАТА (битовые маски) ===== */
+function mkMask(b,s){let bm=0,sm=0;for(const n of b)bm|=1<<n;for(const n of s)sm|=1<<n;return{bm,sm}}
+const RULES={
+  conway:mkMask([3],[2,3]),
+  highlife:mkMask([3,6],[2,3]),
+  seeds:mkMask([2],[]),
+  daynight:mkMask([3,6,7,8],[3,4,6,7,8]),
+  maze:mkMask([3],[1,2,3,4,5])
+};
+
+/* ===== ЦВЕТОВАЯ LUT (возраст → RGB) ===== */
+const CLR=new Uint8Array(256*3);
+(function buildLUT(){
+  // Фон (возраст 0)
+  CLR[0]=13;CLR[1]=10;CLR[2]=8;
+  // Молодые: #e8c890=(232,200,144), Старые: #8f7451=(143,116,81)
+  for(let a=1;a<256;a++){
+    const t=Math.min((a-1)/49,1);
+    const e=1-Math.pow(1-t,0.6); // нелинейная кривая выгорания
+    CLR[a*3]  =Math.round(232+(143-232)*e);
+    CLR[a*3+1]=Math.round(200+(116-200)*e);
+    CLR[a*3+2]=Math.round(144+(81-144)*e);
+  }
+})();
+
+/* ===== СОСТОЯНИЕ ===== */
+let gridSize=120, grid, nextGrid, imageData;
+let generation=0, running=false, speed=15, lastStep=0, animId=null;
+let symmetry='octant', ruleKey='maze', fontScale=1, drawMode='draw';
+let isDrawing=false;
+
+const canvas=document.getElementById('grid-canvas');
+const ctx=canvas.getContext('2d',{willReadFrequently:false});
+
+/* ===== УПРАВЛЕНИЕ СЕТКОЙ ===== */
+function allocGrid(){
+  const n=gridSize*gridSize;
+  grid=new Uint8Array(n);
+  nextGrid=new Uint8Array(n);
+  canvas.width=gridSize;
+  canvas.height=gridSize;
+  imageData=ctx.createImageData(gridSize,gridSize);
+}
+function clearGrid(){grid.fill(0);generation=0}
+
+/* ===== ПОСЕВ С СИММЕТРИЕЙ ===== */
+function setSym(px,py,cx,cy){
+  const N=gridSize;
+  const dx=px-cx, dy=py-cy;
+  let pts;
+  if(symmetry==='row'){
+    pts=[[dx,dy]];
+  }else if(symmetry==='mirrors'){
+    pts=[[dx,dy],[-dx,dy],[dx,-dy],[-dx,-dy]];
+  }else{
+    pts=[[dx,dy],[-dx,dy],[dx,-dy],[-dx,-dy],[dy,dx],[-dy,dx],[dy,-dx],[-dy,-dx]];
+  }
+  for(const[ndx,ndy] of pts){
+    const c=((cx+ndx)%N+N)%N;
+    const r=((cy+ndy)%N+N)%N;
+    grid[r*N+c]=1;
+  }
+}
+
+function seedFromText(text){
+  clearGrid();
+  if(!text.trim())return;
+  const sc=fontScale;
+  const cw=5*sc, ch=7*sc, sp=sc;
+  const chars=[];
+  for(const c of text)chars.push(charPattern(c));
+  const tw=chars.length*(cw+sp)-sp;
+  const th=ch;
+  const cx=Math.floor(gridSize/2);
+  const cy=Math.floor(gridSize/2);
+
+  // Область размещения
+  let rx,ry,rw,rh;
+  if(symmetry==='row'){rx=0;ry=0;rw=gridSize;rh=gridSize}
+  else if(symmetry==='mirrors'){rx=cx;ry=0;rw=gridSize-cx;rh=gridSize}
+  else{rx=cx;ry=0;rw=gridSize-cx;rh=cy}
+
+  const sx=rx+Math.floor((rw-tw)/2);
+  const sy=ry+Math.floor((rh-th)/2);
+
+  for(let ci=0;ci<chars.length;ci++){
+    const pat=chars[ci];
+    const ox=sx+ci*(cw+sp);
+    for(let row=0;row<7;row++){
+      for(let col=0;col<5;col++){
+        if(pat[row]&(1<<(4-col))){
+          for(let sy2=0;sy2<sc;sy2++){
+            for(let sx2=0;sx2<sc;sx2++){
+              setSym(ox+col*sc+sx2, sy+row*sc+sy2, cx, cy);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/* ===== ШАГ АВТОМАТА ===== */
+function step(){
+  const N=gridSize, Nm1=N-1;
+  const{bm,sm}=RULES[ruleKey];
+  for(let y=0;y<N;y++){
+    const ym=y===0?Nm1:y-1;
+    const yp=y===Nm1?0:y+1;
+    const rowOff=y*N;
+    for(let x=0;x<N;x++){
+      const xm=x===0?Nm1:x-1;
+      const xp=x===Nm1?0:x+1;
+      // Подсчёт 8 соседей (тороидальные границы)
+      let n=0;
+      if(grid[ym*N+xm])n++;
+      if(grid[ym*N+x])n++;
+      if(grid[ym*N+xp])n++;
+      if(grid[rowOff+xm])n++;
+      if(grid[rowOff+xp])n++;
+      if(grid[yp*N+xm])n++;
+      if(grid[yp*N+x])n++;
+      if(grid[yp*N+xp])n++;
+      const idx=rowOff+x;
+      const alive=grid[idx]>0;
+      if(alive){
+        nextGrid[idx]=((sm>>n)&1)?Math.min(grid[idx]+1,255):0;
+      }else{
+        nextGrid[idx]=((bm>>n)&1)?1:0;
+      }
+    }
+  }
+  // Обмен буферов
+  const tmp=grid;grid=nextGrid;nextGrid=tmp;
+  generation++;
+}
+
+/* ===== РЕНДЕРИНГ ===== */
+function render(){
+  const N=gridSize;
+  const d=imageData.data;
+  const len=N*N;
+  for(let i=0;i<len;i++){
+    const a=grid[i];
+    const p=i*4;
+    const c=a*3;
+    d[p]=CLR[c];d[p+1]=CLR[c+1];d[p+2]=CLR[c+2];d[p+3]=255;
+  }
+  ctx.putImageData(imageData,0,0);
+}
+
+function countLive(){
+  let c=0;for(let i=0;i<grid.length;i++)if(grid[i])c++;return c;
+}
+function updateStats(){
+  document.getElementById('genCount').textContent=generation;
+  document.getElementById('cellCount').textContent=countLive();
+}
+
+/* ===== ИГРОВОЙ ЦИКЛ ===== */
+function loop(ts){
+  if(!running)return;
+  const interval=1000/speed;
+  if(ts-lastStep>=interval){
+    step();render();updateStats();
+    lastStep=ts;
+  }
+  animId=requestAnimationFrame(loop);
+}
+function startSim(){
+  if(running)return;
+  running=true;
+  document.getElementById('btnStart').textContent='Пауза';
+  lastStep=performance.now();
+  animId=requestAnimationFrame(loop);
+}
+function stopSim(){
+  running=false;
+  if(animId){cancelAnimationFrame(animId);animId=null}
+  document.getElementById('btnStart').textContent='Старт';
+}
+function toggleSim(){running?stopSim():startSim()}
+
+/* ===== МЫШЬ / ТАЧ ===== */
+function cellFromEvent(e){
+  const r=canvas.getBoundingClientRect();
+  const sx=gridSize/r.width, sy=gridSize/r.height;
+  const x=Math.floor((e.clientX-r.left)*sx);
+  const y=Math.floor((e.clientY-r.top)*sy);
+  if(x>=0&&x<gridSize&&y>=0&&y<gridSize)return{x,y};
+  return null;
+}
+function paintCell(e){
+  const c=cellFromEvent(e);
+  if(!c)return;
+  const idx=c.y*gridSize+c.x;
+  const erase=(e.altKey||drawMode==='erase');
+  grid[idx]=erase?0:1;
+  if(!running){render();updateStats()}
+}
+canvas.addEventListener('mousedown',e=>{isDrawing=true;paintCell(e)});
+canvas.addEventListener('mousemove',e=>{if(isDrawing)paintCell(e)});
+window.addEventListener('mouseup',()=>{isDrawing=false});
+canvas.addEventListener('touchstart',e=>{e.preventDefault();isDrawing=true;handleTouch(e)},{passive:false});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(isDrawing)handleTouch(e)},{passive:false});
+canvas.addEventListener('touchend',()=>{isDrawing=false});
+function handleTouch(e){
+  if(!e.touches.length)return;
+  const t=e.touches[0];
+  paintCell({clientX:t.clientX,clientY:t.clientY,altKey:drawMode==='erase'});
+}
+
+/* ===== ЭКСПОРТ PNG ===== */
+function exportPNG(){
+  const scale=Math.max(1,Math.floor(1024/gridSize));
+  const ec=document.createElement('canvas');
+  ec.width=gridSize*scale;ec.height=gridSize*scale;
+  const ectx=ec.getContext('2d');
+  ectx.imageSmoothingEnabled=false;
+  ectx.drawImage(canvas,0,0,ec.width,ec.height);
+  const link=document.createElement('a');
+  const txt=document.getElementById('textInput').value.trim().replace(/\s+/g,'_')||'pattern';
+  link.download=`ornament_${txt}_gen${generation}.png`;
+  link.href=ec.toDataURL('image/png');
+  link.click();
+}
+
+/* ===== ПЕРЕСЕЕВ ===== */
+function reseed(){
+  stopSim();
+  seedFromText(document.getElementById('textInput').value);
+  render();updateStats();
+}
+
+/* ===== UI ПРИВЯЗКИ ===== */
+// Текстовый ввод — живое обновление
+document.getElementById('textInput').addEventListener('input',()=>{
+  stopSim();
+  seedFromText(document.getElementById('textInput').value);
+  render();updateStats();
+});
+
+// Группы кнопок (сегментированные контролы)
+function setupBtnGroup(id,cb){
+  const g=document.getElementById(id);
+  g.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      g.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+      btn.classList.add('on');
+      cb(btn.dataset.v);
+    });
+  });
+}
+setupBtnGroup('symGroup',v=>{symmetry=v;reseed()});
+setupBtnGroup('scaleGroup',v=>{fontScale=parseInt(v);reseed()});
+setupBtnGroup('drawGroup',v=>{drawMode=v});
+
+// Селектор правила
+document.getElementById('ruleSelect').addEventListener('change',e=>{
+  ruleKey=e.target.value;
+});
+
+// Слайдеры
+const sizeSlider=document.getElementById('sizeSlider');
+const sizeVal=document.getElementById('sizeVal');
+sizeSlider.addEventListener('input',()=>{
+  sizeVal.textContent=sizeSlider.value;
+});
+sizeSlider.addEventListener('change',()=>{
+  gridSize=parseInt(sizeSlider.value);
+  stopSim();
+  allocGrid();
+  seedFromText(document.getElementById('textInput').value);
+  render();updateStats();
+});
+
+const speedSlider=document.getElementById('speedSlider');
+const speedVal=document.getElementById('speedVal');
+speedSlider.addEventListener('input',()=>{
+  speed=parseInt(speedSlider.value);
+  speedVal.textContent=speed;
+});
+
+// Кнопки действий
+document.getElementById('btnStart').addEventListener('click',toggleSim);
+document.getElementById('btnStep').addEventListener('click',()=>{
+  if(running)stopSim();
+  step();render();updateStats();
+});
+document.getElementById('btnReseed').addEventListener('click',reseed);
+document.getElementById('btnClear').addEventListener('click',()=>{
+  stopSim();clearGrid();render();updateStats();
+});
+document.getElementById('btnExport').addEventListener('click',exportPNG);
+
+// Мобильное меню
+document.getElementById('mobile-toggle').addEventListener('click',()=>{
+  document.getElementById('panel').classList.toggle('open');
+});
+// Закрытие панели при клике на canvas (мобильные)
+canvas.addEventListener('click',()=>{
+  if(window.innerWidth<=768){
+    document.getElementById('panel').classList.remove('open');
+  }
+});
+
+// Горячие клавиши
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+  if(e.code==='Space'){e.preventDefault();toggleSim()}
+  else if(e.code==='ArrowRight'){e.preventDefault();if(running)stopSim();step();render();updateStats()}
+  else if(e.code==='KeyR'){reseed()}
+  else if(e.code==='KeyC'){stopSim();clearGrid();render();updateStats()}
+});
+
+/* ===== ИНИЦИАЛИЗАЦИЯ ===== */
+allocGrid();
+seedFromText(document.getElementById('textInput').value);
+render();
+updateStats();
+</script>
+</body>
+</html>
