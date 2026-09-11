@@ -1,537 +1,537 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Клеточный орнамент</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Zebra Scanner v5</title>
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0d0a08;--panel:#15100b;--border:#2a1f16;
-  --text:#c9a876;--bright:#e8c890;--dim:#8f7451;
-  --input:#1a1410;--btn:#2a1f16;--btn-h:#3a2f26;
-  --active:#c9a876;--active-t:#0d0a08;
-}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px}
-#app{display:flex;height:100%;width:100%}
-#panel{width:290px;min-width:290px;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;z-index:10}
-#panel::-webkit-scrollbar{width:4px}
-#panel::-webkit-scrollbar-track{background:var(--panel)}
-#panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-#panel h1{font-size:15px;font-weight:700;color:var(--bright);letter-spacing:.5px;line-height:1.3}
-#panel h1 span{display:block;font-size:10px;font-weight:400;color:var(--dim);margin-top:2px;letter-spacing:0}
-.cg{display:flex;flex-direction:column;gap:5px}
-.cg label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
-.cg input[type=text]{background:var(--input);border:1px solid var(--border);color:var(--bright);padding:7px 10px;border-radius:4px;font-family:inherit;font-size:14px;outline:none;transition:border .2s}
-.cg input[type=text]:focus{border-color:var(--active)}
-.hint-text{font-size:10px;color:var(--dim);opacity:.7;line-height:1.3}
-.cg input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--input);border-radius:3px;outline:none;cursor:pointer}
-.cg input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--active);cursor:pointer;border:2px solid var(--bg)}
-.cg input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--active);cursor:pointer;border:2px solid var(--bg)}
-.range-row{display:flex;align-items:center;gap:8px}
-.range-row span{font-size:12px;color:var(--bright);min-width:32px;text-align:right}
-.bg{display:flex;gap:0;border-radius:4px;overflow:hidden;border:1px solid var(--border)}
-.bg button{flex:1;padding:6px 4px;background:var(--btn);color:var(--text);border:none;font-family:inherit;font-size:10px;cursor:pointer;transition:all .15s;white-space:nowrap}
-.bg button:not(:last-child){border-right:1px solid var(--border)}
-.bg button:hover{background:var(--btn-h)}
-.bg button.on{background:var(--active);color:var(--active-t);font-weight:700}
-select{background:var(--input);border:1px solid var(--border);color:var(--bright);padding:6px 8px;border-radius:4px;font-family:inherit;font-size:12px;outline:none;cursor:pointer}
-select:focus{border-color:var(--active)}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.actions button{padding:8px 6px;background:var(--btn);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:inherit;font-size:11px;cursor:pointer;transition:all .15s}
-.actions button:hover{background:var(--btn-h);border-color:var(--dim)}
-.actions button.wide{grid-column:1/-1}
-.actions button.primary{background:var(--active);color:var(--active-t);border-color:var(--active);font-weight:700}
-.actions button.primary:hover{background:var(--bright)}
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.stat{background:var(--input);border:1px solid var(--border);border-radius:4px;padding:8px 10px}
-.stat .sl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
-.stat .sv{font-size:18px;font-weight:700;color:var(--bright);margin-top:2px}
-#canvas-container{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;padding:12px;position:relative}
-#grid-canvas{
-  image-rendering:pixelated;
-  image-rendering:crisp-edges;
-  width:min(calc(100vw - 314px),calc(100vh - 24px));
-  height:min(calc(100vw - 314px),calc(100vh - 24px));
-  border-radius:2px;cursor:crosshair;
-}
-.canvas-hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--dim);background:rgba(13,10,8,.85);padding:4px 12px;border-radius:3px;pointer-events:none;opacity:.7;white-space:nowrap}
-#mobile-toggle{display:none;position:fixed;top:8px;left:8px;z-index:20;width:36px;height:36px;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:18px;cursor:pointer;align-items:center;justify-content:center}
-@media(max-width:768px){
-  #mobile-toggle{display:flex}
-  #panel{position:fixed;top:0;left:0;height:100%;transform:translateX(-100%);transition:transform .25s ease}
-  #panel.open{transform:translateX(0)}
-  #canvas-container{width:100%;padding:8px;padding-top:48px}
-  #grid-canvas{
-    width:min(calc(100vw - 16px),calc(100vh - 56px));
-    height:min(calc(100vw - 16px),calc(100vh - 56px));
-  }
-}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#141414;color:#ddd;font-family:'Courier New',monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:#0c0c0c;border-bottom:1px solid #252525;padding:8px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+header h1{font-size:11px;letter-spacing:3px;color:#fff;text-transform:uppercase}
+.led{width:7px;height:7px;border-radius:50%;background:#aa0;box-shadow:0 0 5px #ff0;transition:all .3s}
+.main{display:flex;flex:1;overflow:hidden}
+.cs{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px;background:#1a1a1a;overflow:hidden}
+.ctrl{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+button{background:#1e1e1e;color:#bbb;border:1px solid #3a3a3a;padding:7px 15px;font-family:inherit;font-size:11px;letter-spacing:1px;cursor:pointer;text-transform:uppercase;transition:all .12s}
+button:hover{background:#2a2a2a;border-color:#666;color:#fff}
+button:disabled{opacity:.4;cursor:default}
+button.active{background:#800;border-color:#c00;color:#fff}
+.views{display:flex;gap:10px;align-items:flex-start;justify-content:center;max-width:100%}
+#wrap,#warpWrap{position:relative;border:1px solid #2e2e2e;background:#000}
+#mainCanvas{display:block;max-width:100%;max-height:calc(100vh - 150px)}
+#warpCanvas{display:block;max-height:220px;max-width:220px}
+#warpWrap{display:none}
+.vlabel{font-size:9px;color:#555;text-align:center;letter-spacing:1px;margin-top:3px}
+#camWrap{display:none;position:relative;border:1px solid #2e2e2e;background:#000}
+#videoEl{display:block;max-width:100%;max-height:calc(100vh - 150px)}
+#camOverlay{position:absolute;top:0;left:0;pointer-events:none}
+#camTimer{position:absolute;top:10px;right:14px;font-size:22px;font-weight:bold;color:#fff;text-shadow:0 0 8px #000}
+#status{font-size:11px;color:#555;letter-spacing:1px;min-height:14px;text-align:center}
+#cvStatus{font-size:11px;color:#ffb74d;text-align:center;min-height:14px}
+.log-side{width:290px;min-width:180px;background:#0c0c0c;border-left:1px solid #252525;display:flex;flex-direction:column;overflow:hidden}
+.log-head{background:#111;border-bottom:1px solid #252525;padding:7px 12px;font-size:10px;letter-spacing:2px;color:#444;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+#clearBtn{font-size:10px;padding:2px 7px;letter-spacing:0}
+#logBox{flex:1;overflow-y:auto;padding:8px 10px;font-size:10.5px;line-height:1.75}
+.ll{margin-bottom:1px}
+.ok{color:#4caf50}.err{color:#ef5350}.inf{color:#7eb8f7}.warn{color:#ffb74d}.dim{color:#666}
+.sep{color:#252525;border-top:1px solid #252525;margin:5px 0;font-size:8px}
+#fileInput{display:none}
 </style>
 </head>
 <body>
-<button id="mobile-toggle" aria-label="Меню">&#9776;</button>
-<div id="app">
-<aside id="panel">
-  <h1>Клеточный орнамент<span>Симметричный клеточный автомат</span></h1>
-
-  <div class="cg">
-    <label>Текст (до 12 символов)</label>
-    <input type="text" id="textInput" maxlength="12" value="ОРНАМЕНТ" spellcheck="false" autocomplete="off">
-    <small class="hint-text">символи заповнюють трикутник від центру, як мозаїка</small>
-  </div>
-
-  <div class="cg">
-    <label>Симметрия посева</label>
-    <div class="bg" id="symGroup">
-      <button data-v="octant" class="on">Октант x8</button>
-      <button data-v="mirrors">Дзеркала x4</button>
-      <button data-v="row">Рядок x1</button>
+<header><div class="led" id="led"></div><h1>Zebra Scanner v5 — Contours</h1></header>
+<div class="main">
+  <div class="cs">
+    <div id="cvStatus">⏳ Завантаження OpenCV.js...</div>
+    <div class="ctrl">
+      <button id="btnGallery" disabled>📁 Галерея</button>
+      <button id="btnCamera" disabled>📷 Камера</button>
     </div>
-  </div>
-
-  <div class="cg">
-    <label>Размер поля</label>
-    <div class="range-row">
-      <input type="range" id="sizeSlider" min="60" max="240" step="12" value="120">
-      <span id="sizeVal">120</span>
+    <input type="file" id="fileInput" accept="image/*">
+    <div class="views">
+      <div>
+        <div id="wrap"><canvas id="mainCanvas"></canvas></div>
+      </div>
+      <div id="warpWrap">
+        <canvas id="warpCanvas"></canvas>
+        <div class="vlabel">вирівняно</div>
+      </div>
     </div>
-  </div>
-
-  <div class="cg">
-    <label>Масштаб шрифта</label>
-    <div class="bg" id="scaleGroup">
-      <button data-v="1" class="on">1x</button>
-      <button data-v="2">2x</button>
-      <button data-v="3">3x</button>
+    <div id="camWrap">
+      <video id="videoEl" autoplay playsinline muted></video>
+      <canvas id="camOverlay"></canvas>
+      <div id="camTimer"></div>
     </div>
+    <div id="status">завантажую OpenCV...</div>
   </div>
-
-  <div class="cg">
-    <label>Правило автомата</label>
-    <select id="ruleSelect">
-      <option value="conway">Conway B3/S23</option>
-      <option value="highlife">HighLife B36/S23</option>
-      <option value="seeds">Seeds B2/S</option>
-      <option value="daynight">День и ночь B3678/S34678</option>
-      <option value="maze" selected>Лабиринт B3/S12345</option>
-    </select>
+  <div class="log-side">
+    <div class="log-head"><span>LOG</span><button id="clearBtn">✕</button></div>
+    <div id="logBox"></div>
   </div>
-
-  <div class="cg">
-    <label>Скорость (поколений/сек)</label>
-    <div class="range-row">
-      <input type="range" id="speedSlider" min="1" max="60" value="15">
-      <span id="speedVal">15</span>
-    </div>
-  </div>
-
-  <div class="cg">
-    <label>Режим рисования мышью</label>
-    <div class="bg" id="drawGroup">
-      <button data-v="draw" class="on">Рисование</button>
-      <button data-v="erase">Стирание</button>
-    </div>
-  </div>
-
-  <div class="stats">
-    <div class="stat"><div class="sl">Поколение</div><div class="sv" id="genCount">0</div></div>
-    <div class="stat"><div class="sl">Живых клеток</div><div class="sv" id="cellCount">0</div></div>
-  </div>
-
-  <div class="actions">
-    <button class="primary wide" id="btnStart">Старт</button>
-    <button id="btnStep">Шаг</button>
-    <button id="btnReseed">Пересеять</button>
-    <button id="btnClear">Очистить</button>
-    <button class="wide" id="btnExport">Экспорт PNG</button>
-  </div>
-</aside>
-
-<main id="canvas-container">
-  <canvas id="grid-canvas"></canvas>
-  <div class="canvas-hint">Клик — рисовать, Alt+клик — стереть</div>
-</main>
 </div>
-
+<script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onCvReady()"></script>
 <script>
-/* ===== БИТМАП-ШРИФТ 5x7 ===== */
-const FONT={
-A:[14,17,17,31,17,17,17],B:[30,17,17,30,17,17,30],C:[15,16,16,16,16,16,15],
-D:[30,17,17,17,17,17,30],E:[31,16,16,30,16,16,31],F:[31,16,16,30,16,16,16],
-G:[15,16,16,19,17,17,14],H:[17,17,17,31,17,17,17],I:[14,4,4,4,4,4,14],
-J:[7,2,2,2,2,18,12],K:[17,18,20,24,20,18,17],L:[16,16,16,16,16,16,31],
-M:[17,27,21,21,17,17,17],N:[17,25,21,19,17,17,17],O:[14,17,17,17,17,17,14],
-P:[30,17,17,30,16,16,16],Q:[14,17,17,17,21,18,13],R:[30,17,17,30,20,18,17],
-S:[15,16,16,14,1,1,30],T:[31,4,4,4,4,4,4],U:[17,17,17,17,17,17,14],
-V:[17,17,17,17,10,10,4],W:[17,17,17,21,21,21,10],X:[17,17,10,4,10,17,17],
-Y:[17,17,10,4,4,4,4],Z:[31,1,2,4,8,16,31],
-'0':[14,19,21,21,25,17,14],'1':[4,12,4,4,4,4,14],'2':[14,17,1,2,4,8,31],
-'3':[31,2,4,2,1,17,14],'4':[2,6,10,18,31,2,2],'5':[31,16,30,1,1,17,14],
-'6':[6,8,16,30,17,17,14],'7':[31,1,2,4,8,8,8],'8':[14,17,17,14,17,17,14],
-'9':[14,17,17,15,1,2,12],
-' ':[0,0,0,0,0,0,0],'.':[0,0,0,0,0,0,4],',':[0,0,0,0,0,4,8],
-'-':[0,0,0,14,0,0,0],'!':[4,4,4,4,4,0,4],'?':[14,17,1,2,4,0,4],
-':':[0,0,4,0,4,0,0],
-А:[14,17,17,31,17,17,17],Б:[30,16,30,17,17,17,30],В:[30,17,17,30,17,17,30],
-Г:[31,16,16,16,16,16,16],Д:[6,9,17,17,17,17,31],Е:[31,16,16,30,16,16,31],
-Ё:[20,0,31,16,30,16,31],Ж:[21,21,10,4,10,21,21],З:[15,1,1,6,1,1,15],
-И:[17,17,17,25,21,19,17],Й:[10,0,17,17,25,21,19],К:[17,18,20,24,20,18,17],
-Л:[6,9,17,17,17,17,17],М:[17,27,21,21,17,17,17],Н:[17,17,17,31,17,17,17],
-О:[14,17,17,17,17,17,14],П:[31,17,17,17,17,17,17],Р:[30,17,17,30,16,16,16],
-С:[15,16,16,16,16,16,15],Т:[31,4,4,4,4,4,4],У:[17,17,10,4,4,8,16],
-Ф:[10,21,31,31,31,21,10],Х:[17,17,10,4,10,17,17],Ц:[17,17,17,17,17,17,15],
-Ч:[17,17,17,15,1,1,1],Ш:[17,17,17,17,21,21,31],Щ:[17,17,21,21,21,31,1],
-Ъ:[16,16,30,18,17,17,30],Ы:[17,17,17,27,17,17,17],Ь:[16,16,30,17,17,17,30],
-Э:[14,16,16,14,16,16,14],Ю:[18,18,18,30,18,18,18],Я:[14,17,17,14,18,17,17]
-};
-function charPattern(ch){return FONT[ch.toUpperCase()]||FONT[' ']}
+const logBox=document.getElementById('logBox');
+function L(m,t='inf'){const d=document.createElement('div');d.className='ll '+t;
+  d.textContent=`[${new Date().toLocaleTimeString('uk',{hour12:false})}] ${m}`;
+  logBox.appendChild(d);logBox.scrollTop=logBox.scrollHeight;}
+function Lsep(){const d=document.createElement('div');d.className='ll sep';d.textContent='─'.repeat(26);logBox.appendChild(d);}
+document.getElementById('clearBtn').onclick=()=>logBox.innerHTML='';
 
-/* ===== ПРАВИЛА АВТОМАТА ===== */
-function mkMask(b,s){let bm=0,sm=0;for(const n of b)bm|=1<<n;for(const n of s)sm|=1<<n;return{bm,sm}}
-const RULES={
-  conway:mkMask([3],[2,3]),
-  highlife:mkMask([3,6],[2,3]),
-  seeds:mkMask([2],[]),
-  daynight:mkMask([3,6,7,8],[3,4,6,7,8]),
-  maze:mkMask([3],[1,2,3,4,5])
-};
+const statusEl=document.getElementById('status'), led=document.getElementById('led');
+const canvas=document.getElementById('mainCanvas'), ctx=canvas.getContext('2d');
+const warpCanvas=document.getElementById('warpCanvas'), warpWrap=document.getElementById('warpWrap');
 
-/* ===== ЦВЕТОВАЯ LUT ===== */
-const CLR=new Uint8Array(256*3);
-(function(){
-  CLR[0]=13;CLR[1]=10;CLR[2]=8;
-  for(let a=1;a<256;a++){
-    const t=Math.min((a-1)/49,1);
-    const e=1-Math.pow(1-t,0.6);
-    CLR[a*3]  =Math.round(232+(143-232)*e);
-    CLR[a*3+1]=Math.round(200+(116-200)*e);
-    CLR[a*3+2]=Math.round(144+(81-144)*e);
-  }
-})();
-
-/* ===== СОСТОЯНИЕ ===== */
-let gridSize=120, grid, nextGrid, imageData;
-let generation=0, running=false, speed=15, lastStep=0, animId=null;
-let symmetry='octant', ruleKey='maze', fontScale=1, drawMode='draw';
-let isDrawing=false;
-
-const canvas=document.getElementById('grid-canvas');
-const ctx=canvas.getContext('2d',{willReadFrequently:false});
-
-/* ===== УПРАВЛЕНИЕ СЕТКОЙ ===== */
-function allocGrid(){
-  const n=gridSize*gridSize;
-  grid=new Uint8Array(n);
-  nextGrid=new Uint8Array(n);
-  canvas.width=gridSize;
-  canvas.height=gridSize;
-  imageData=ctx.createImageData(gridSize,gridSize);
-}
-function clearGrid(){grid.fill(0);generation=0}
-
-/* ===== ПОСЕВ С СИММЕТРИЕЙ ===== */
-function setSym(px,py,cx,cy){
-  const N=gridSize;
-  const dx=px-cx, dy=py-cy;
-  let pts;
-  if(symmetry==='row'){
-    pts=[[dx,dy]];
-  }else if(symmetry==='mirrors'){
-    pts=[[dx,dy],[-dx,dy],[dx,-dy],[-dx,-dy]];
-  }else{
-    pts=[[dx,dy],[-dx,dy],[dx,-dy],[-dx,-dy],[dy,dx],[-dy,dx],[dy,-dx],[-dy,-dx]];
-  }
-  for(const[ndx,ndy] of pts){
-    const c=((cx+ndx)%N+N)%N;
-    const r=((cy+ndy)%N+N)%N;
-    grid[r*N+c]=1;
-  }
+function setLed(s){
+  const c={ok:['#0c0','#0f0'],err:['#c00','#f00'],warn:['#aa0','#ff0']}[s]||['#aa0','#ff0'];
+  led.style.background=c[0];led.style.boxShadow='0 0 6px '+c[1];
 }
 
-/* Вспомогательная: отрисовка глифа по базовым координатам */
-function placeGlyph(pat,bx,by,sc,useSym,cx,cy){
-  for(let r=0;r<7;r++){
-    for(let c=0;c<5;c++){
-      if(pat[r]&(1<<(4-c))){
-        for(let dy=0;dy<sc;dy++){
-          for(let dx=0;dx<sc;dx++){
-            const px=bx+c*sc+dx;
-            const py=by+r*sc+dy;
-            if(px>=0&&px<gridSize&&py>=0&&py<gridSize){
-              if(useSym) setSym(px,py,cx,cy);
-              else grid[py*gridSize+px]=1;
-            }
-          }
-        }
-      }
-    }
-  }
+function onCvReady(){
+  document.getElementById('cvStatus').textContent='✅ OpenCV.js готовий';
+  document.getElementById('btnGallery').disabled=false;
+  document.getElementById('btnCamera').disabled=false;
+  statusEl.textContent='готово';setLed('ok');
+  L('OpenCV.js готовий','ok');
+  L('v5: findContours → 4-кутник → перспектива → зебра');
+  Lsep();
 }
 
-function seedFromText(text){
-  clearGrid();
-  if(!text.trim())return;
-  const sc=fontScale;
-  const cellSize=7*sc; /* размер ячейки сетки (ширина = высота = 7 строк × масштаб) */
-  const step=cellSize;  /* зазор 0 — ячейки соприкасаются краями */
-  const cx=Math.floor(gridSize/2);
-  const cy=Math.floor(gridSize/2);
-
-  const chars=[];
-  for(const c of text)chars.push(charPattern(c));
-
-  if(symmetry==='row'){
-    /* Построчное размещение без симметрии */
-    const cw=5*sc, ch=7*sc, sp=sc;
-    const tw=chars.length*(cw+sp)-sp;
-    const sx=Math.floor((gridSize-tw)/2);
-    const sy=Math.floor((gridSize-ch)/2);
-    for(let ci=0;ci<chars.length;ci++){
-      placeGlyph(chars[ci], sx+ci*(cw+sp), sy, sc, false, cx, cy);
-    }
-  }else{
-    /* Сеточное размещение в секторе: octant (треугольник) или mirrors (четверть) */
-    const isOctant=(symmetry==='octant');
-    const maxCol=Math.floor((gridSize-1-cx)/step);
-    const maxRow=Math.floor((cy-1)/step);
-
-    /* Собираем ячейки, целиком лежащие внутри сектора */
-    const cells=[];
-    for(let row=0;row<=maxRow;row++){
-      for(let col=0;col<=maxCol;col++){
-        /* Ячейка должна помещаться в поле */
-        if(cx+col*step+cellSize-1>=gridSize)continue;
-        if(cy-(row+1)*step<0)continue;
-        /* Для октанта: вся ячейка строго выше диагонали dx=|dy|.
-           Ближайший к диагонали пиксель ячейки — левый нижний угол:
-           dx = col*step, |dy| = row*step+1.
-           Условие: col*step > row*step+1 */
-        if(isOctant && col*step<=row*step+1)continue;
-        cells.push({col,row,layer:col+row});
-      }
-    }
-
-    /* Сортировка по диагональным слоям от центра (col+row),
-       внутри слоя — по row (от нижнего края к верхнему) */
-    cells.sort((a,b)=>a.layer!==b.layer?a.layer-b.layer:a.row-b.row);
-
-    /* Размещаем символы по очереди в отсортированные ячейки */
-    let ci=0;
-    for(const cell of cells){
-      if(ci>=chars.length)break;
-      /* Базовые координаты ячейки: левый верхний угол */
-      const bx=cx+cell.col*step;
-      const by=cy-(cell.row+1)*step;
-      placeGlyph(chars[ci++], bx, by, sc, true, cx, cy);
-    }
-  }
-}
-
-/* ===== ШАГ АВТОМАТА ===== */
-function step(){
-  const N=gridSize, Nm1=N-1;
-  const{bm,sm}=RULES[ruleKey];
-  for(let y=0;y<N;y++){
-    const ym=y===0?Nm1:y-1;
-    const yp=y===Nm1?0:y+1;
-    const rowOff=y*N;
-    for(let x=0;x<N;x++){
-      const xm=x===0?Nm1:x-1;
-      const xp=x===Nm1?0:x+1;
-      let n=0;
-      if(grid[ym*N+xm])n++;
-      if(grid[ym*N+x])n++;
-      if(grid[ym*N+xp])n++;
-      if(grid[rowOff+xm])n++;
-      if(grid[rowOff+xp])n++;
-      if(grid[yp*N+xm])n++;
-      if(grid[yp*N+x])n++;
-      if(grid[yp*N+xp])n++;
-      const idx=rowOff+x;
-      const alive=grid[idx]>0;
-      if(alive){
-        nextGrid[idx]=((sm>>n)&1)?Math.min(grid[idx]+1,255):0;
+// ── GALLERY ───────────────────────────────────────────────────────────────────
+document.getElementById('btnGallery').onclick=()=>{stopCamera();document.getElementById('fileInput').click();};
+document.getElementById('fileInput').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  Lsep();L(`Файл: ${f.name}`);
+  const img=new Image();
+  img.onload=()=>{
+    canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+    ctx.drawImage(img,0,0);
+    L(`Розмір: ${img.naturalWidth}×${img.naturalHeight}px`);
+    statusEl.textContent='Аналізую...';setLed('warn');
+    warpWrap.style.display='none';
+    setTimeout(()=>{
+      const r=detect(canvas,true);
+      if(r.found){
+        drawResult(ctx,r);
+        showWarp(r);
+        statusEl.textContent=`✅ сітка ${r.gridN}×${r.gridN}`;
+        setLed('ok');
       }else{
-        nextGrid[idx]=((bm>>n)&1)?1:0;
+        statusEl.textContent='❌ Зебру не знайдено';setLed('err');
+      }
+      Lsep();
+    },40);
+  };
+  img.src=URL.createObjectURL(f);
+  document.getElementById('fileInput').value='';
+};
+
+// ── CAMERA ────────────────────────────────────────────────────────────────────
+let stream=null,camTick=null,camCd=null,camSecs=5,camFound=false;
+const videoEl=document.getElementById('videoEl'),camWrap=document.getElementById('camWrap');
+const camOvl=document.getElementById('camOverlay'),camOvlCtx=camOvl.getContext('2d');
+const wrap=document.getElementById('wrap'),camTimerEl=document.getElementById('camTimer');
+
+document.getElementById('btnCamera').onclick=async()=>{
+  if(stream){stopCamera();return;}
+  Lsep();L('Запуск камери...');
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});
+    videoEl.srcObject=stream;await videoEl.play();
+    wrap.parentElement.style.display='none';warpWrap.style.display='none';
+    camWrap.style.display='block';
+    const b=document.getElementById('btnCamera');b.classList.add('active');b.textContent='⏹ Стоп';
+    camFound=false;camSecs=5;camTimerEl.textContent=camSecs+'s';
+    camTick=setInterval(()=>{
+      const vw=videoEl.videoWidth,vh=videoEl.videoHeight;if(!vw||!vh)return;
+      camOvl.width=vw;camOvl.height=vh;
+      camOvlCtx.drawImage(videoEl,0,0,vw,vh);
+      const r=detect(camOvl,false);
+      if(r.found){
+        camFound=true;
+        drawResult(camOvlCtx,r);
+        canvas.width=vw;canvas.height=vh;ctx.drawImage(camOvl,0,0);
+        L(`Знайдено! сітка ${r.gridN}×${r.gridN}`,'ok');
+        stopCamera('ok');
+        showWarp(r);
+      }
+    },300);
+    camCd=setInterval(()=>{
+      camSecs--;camTimerEl.textContent=camSecs+'s';
+      if(camSecs<=0){
+        if(!camFound){L('Не знайдено за 5с','err');statusEl.textContent='❌ Не знайдено';setLed('err');}
+        stopCamera();
+      }
+    },1000);
+  }catch(e){L('Камера: '+e.message,'err');}
+};
+function stopCamera(s){
+  clearInterval(camTick);camTick=null;clearInterval(camCd);camCd=null;
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  camWrap.style.display='none';wrap.parentElement.style.display='block';
+  const b=document.getElementById('btnCamera');b.classList.remove('active');b.textContent='📷 Камера';
+  camTimerEl.textContent='';
+  if(s==='ok'){statusEl.textContent='✅ Знайдено!';setLed('ok');}
+}
+
+// ══ DETECTION ═════════════════════════════════════════════════════════════════
+const WARP=400;   // rectified size for analysis
+
+function detect(srcCanvas, v){
+  let src,gray,blur,bin,contours,hier;
+  const mats=[];
+  try{
+    src=cv.imread(srcCanvas);mats.push(src);
+    const W=src.cols,H=src.rows;
+    if(v)L(`Вхід: ${W}×${H}`);
+
+    gray=new cv.Mat();mats.push(gray);
+    cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
+
+    blur=new cv.Mat();mats.push(blur);
+    cv.GaussianBlur(gray,blur,new cv.Size(5,5),0);
+
+    // Adaptive threshold — robust to uneven lighting / screen photos
+    bin=new cv.Mat();mats.push(bin);
+    const blockSize = (Math.floor(Math.min(W,H)/20)*2+1);
+    cv.adaptiveThreshold(blur,bin,255,cv.ADAPTIVE_THRESH_MEAN_C,cv.THRESH_BINARY_INV,
+      Math.max(11,Math.min(151,blockSize)),7);
+    if(v)L(`Бінаризація (block=${Math.max(11,Math.min(151,blockSize))}) ✓`);
+
+    // ── STEP 1: find all contours ────────────────────────────────────────────
+    contours=new cv.MatVector();mats.push(contours);
+    hier=new cv.Mat();mats.push(hier);
+    cv.findContours(bin,contours,hier,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);
+    if(v)L(`Контурів знайдено: ${contours.size()}`);
+
+    // ── STEP 2: keep 4-corner convex quads of reasonable size ────────────────
+    const minArea = W*H*0.004;   // at least 0.4% of image
+    const maxArea = W*H*0.98;
+    const quads=[];
+
+    for(let i=0;i<contours.size();i++){
+      const cnt=contours.get(i);
+      const area=cv.contourArea(cnt);
+      if(area<minArea||area>maxArea){cnt.delete();continue;}
+
+      const peri=cv.arcLength(cnt,true);
+      const approx=new cv.Mat();
+      cv.approxPolyDP(cnt,approx,0.04*peri,true);
+
+      if(approx.rows===4 && cv.isContourConvex(approx)){
+        const pts=[];
+        for(let p=0;p<4;p++) pts.push({x:approx.data32S[p*2],y:approx.data32S[p*2+1]});
+        const ord=orderCorners(pts);
+        const sq=squareness(ord);
+        if(sq>0.55) quads.push({pts:ord,area,sq});
+      }
+      approx.delete();cnt.delete();
+    }
+
+    if(v)L(`4-кутників (квадратних): ${quads.length}`);
+    if(!quads.length){
+      if(v)L('❌ Жодного квадратного контуру','err');
+      return {found:false};
+    }
+
+    // ── STEP 3: test each quad — warp to square, check zebra ─────────────────
+    quads.sort((a,b)=>b.area-a.area);
+    const tested = quads.slice(0,25);
+    if(v)L(`Перевіряю ${tested.length} кандидатів...`);
+
+    let best=null;
+    for(const q of tested){
+      const res = analyseQuad(gray, q.pts);
+      if(!res) continue;
+      if(!best || res.score>best.score){
+        best={...res, pts:q.pts, area:q.area, sqns:q.sq};
       }
     }
+
+    if(!best){
+      if(v)L('❌ Зебра-патерн не підтверджено в жодному','err');
+      return {found:false};
+    }
+
+    if(v){
+      L(`Найкращий: score=${best.score.toFixed(3)}`,'ok');
+      L(`  чергувань по периметру: ${(best.altRatio*100).toFixed(0)}%`);
+      L(`  клітинок по периметру: ${best.totalCells}`);
+      L(`  внутрішня сітка: ${best.gridN}×${best.gridN}`,'ok');
+      const p=best.pts;
+      L(`Кути: (${p[0].x},${p[0].y}) (${p[1].x},${p[1].y})`,'dim');
+      L(`      (${p[2].x},${p[2].y}) (${p[3].x},${p[3].y})`,'dim');
+    }
+
+    if(best.score < 0.35){
+      if(v)L(`❌ Score ${best.score.toFixed(2)} нижче порогу 0.35`,'err');
+      return {found:false};
+    }
+
+    return {
+      found:true,
+      corners:best.pts,
+      gridN:best.gridN,
+      totalCells:best.totalCells,
+      score:best.score,
+      srcCanvas
+    };
+
+  }catch(e){
+    if(v)L('Помилка: '+e,'err');
+    return {found:false};
+  }finally{
+    mats.forEach(m=>{try{m.delete();}catch(e){}});
   }
-  const tmp=grid;grid=nextGrid;nextGrid=tmp;
-  generation++;
 }
 
-/* ===== РЕНДЕРИНГ ===== */
-function render(){
-  const d=imageData.data;
-  const len=gridSize*gridSize;
-  for(let i=0;i<len;i++){
-    const a=grid[i];
-    const p=i*4;
-    const c=a*3;
-    d[p]=CLR[c];d[p+1]=CLR[c+1];d[p+2]=CLR[c+2];d[p+3]=255;
-  }
-  ctx.putImageData(imageData,0,0);
-}
-
-function countLive(){
-  let c=0;for(let i=0;i<grid.length;i++)if(grid[i])c++;return c;
-}
-function updateStats(){
-  document.getElementById('genCount').textContent=generation;
-  document.getElementById('cellCount').textContent=countLive();
-}
-
-/* ===== ИГРОВОЙ ЦИКЛ ===== */
-function loop(ts){
-  if(!running)return;
-  const interval=1000/speed;
-  if(ts-lastStep>=interval){
-    step();render();updateStats();
-    lastStep=ts;
-  }
-  animId=requestAnimationFrame(loop);
-}
-function startSim(){
-  if(running)return;
-  running=true;
-  document.getElementById('btnStart').textContent='Пауза';
-  lastStep=performance.now();
-  animId=requestAnimationFrame(loop);
-}
-function stopSim(){
-  running=false;
-  if(animId){cancelAnimationFrame(animId);animId=null}
-  document.getElementById('btnStart').textContent='Старт';
-}
-function toggleSim(){running?stopSim():startSim()}
-
-/* ===== МЫШЬ / ТАЧ ===== */
-function cellFromEvent(e){
-  const r=canvas.getBoundingClientRect();
-  const sx=gridSize/r.width, sy=gridSize/r.height;
-  const x=Math.floor((e.clientX-r.left)*sx);
-  const y=Math.floor((e.clientY-r.top)*sy);
-  if(x>=0&&x<gridSize&&y>=0&&y<gridSize)return{x,y};
-  return null;
-}
-function paintCell(e){
-  const c=cellFromEvent(e);
-  if(!c)return;
-  const idx=c.y*gridSize+c.x;
-  const erase=(e.altKey||drawMode==='erase');
-  grid[idx]=erase?0:1;
-  if(!running){render();updateStats()}
-}
-canvas.addEventListener('mousedown',e=>{isDrawing=true;paintCell(e)});
-canvas.addEventListener('mousemove',e=>{if(isDrawing)paintCell(e)});
-window.addEventListener('mouseup',()=>{isDrawing=false});
-canvas.addEventListener('touchstart',e=>{e.preventDefault();isDrawing=true;handleTouch(e)},{passive:false});
-canvas.addEventListener('touchmove',e=>{e.preventDefault();if(isDrawing)handleTouch(e)},{passive:false});
-canvas.addEventListener('touchend',()=>{isDrawing=false});
-function handleTouch(e){
-  if(!e.touches.length)return;
-  const t=e.touches[0];
-  paintCell({clientX:t.clientX,clientY:t.clientY,altKey:drawMode==='erase'});
-}
-
-/* ===== ЭКСПОРТ PNG ===== */
-function exportPNG(){
-  const scale=Math.max(1,Math.floor(2048/gridSize));
-  const ec=document.createElement('canvas');
-  ec.width=gridSize*scale;ec.height=gridSize*scale;
-  const ectx=ec.getContext('2d');
-  ectx.imageSmoothingEnabled=false;
-  ectx.drawImage(canvas,0,0,ec.width,ec.height);
-  const link=document.createElement('a');
-  const txt=document.getElementById('textInput').value.trim().replace(/\s+/g,'_')||'pattern';
-  link.download=`ornament_${txt}_gen${generation}.png`;
-  link.href=ec.toDataURL('image/png');
-  link.click();
-}
-
-/* ===== ПЕРЕСЕЕВ ===== */
-function reseed(){
-  stopSim();
-  seedFromText(document.getElementById('textInput').value);
-  render();updateStats();
-}
-
-/* ===== UI ПРИВЯЗКИ ===== */
-document.getElementById('textInput').addEventListener('input',()=>{
-  stopSim();
-  seedFromText(document.getElementById('textInput').value);
-  render();updateStats();
-});
-
-function setupBtnGroup(id,cb){
-  const g=document.getElementById(id);
-  g.querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      g.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
-      btn.classList.add('on');
-      cb(btn.dataset.v);
-    });
+// ── Order corners: TL, TR, BR, BL ─────────────────────────────────────────────
+function orderCorners(pts){
+  const cx=pts.reduce((s,p)=>s+p.x,0)/4;
+  const cy=pts.reduce((s,p)=>s+p.y,0)/4;
+  const withAngle=pts.map(p=>({...p,a:Math.atan2(p.y-cy,p.x-cx)}));
+  // sort clockwise starting from top-left (angle ~ -135°)
+  withAngle.sort((a,b)=>a.a-b.a);
+  // find index closest to -135deg (-3π/4)
+  let startIdx=0,bestD=Infinity;
+  withAngle.forEach((p,i)=>{
+    let d=Math.abs(p.a-(-3*Math.PI/4));
+    if(d>Math.PI) d=2*Math.PI-d;
+    if(d<bestD){bestD=d;startIdx=i;}
   });
+  const out=[];
+  for(let i=0;i<4;i++) out.push(withAngle[(startIdx+i)%4]);
+  return out.map(p=>({x:p.x,y:p.y}));
 }
-setupBtnGroup('symGroup',v=>{symmetry=v;reseed()});
-setupBtnGroup('scaleGroup',v=>{fontScale=parseInt(v);reseed()});
-setupBtnGroup('drawGroup',v=>{drawMode=v});
 
-document.getElementById('ruleSelect').addEventListener('change',e=>{
-  ruleKey=e.target.value;
-});
+// ── Squareness: 0..1, how close the quad is to a square ───────────────────────
+function squareness(p){
+  const d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  const sides=[d(p[0],p[1]),d(p[1],p[2]),d(p[2],p[3]),d(p[3],p[0])];
+  const mn=Math.min(...sides), mx=Math.max(...sides);
+  if(mx===0) return 0;
+  const sideRatio=mn/mx;
+  // diagonals should also be similar
+  const d1=d(p[0],p[2]), d2=d(p[1],p[3]);
+  const diagRatio=Math.min(d1,d2)/Math.max(d1,d2);
+  return sideRatio*diagRatio;
+}
 
-const sizeSlider=document.getElementById('sizeSlider');
-const sizeVal=document.getElementById('sizeVal');
-sizeSlider.addEventListener('input',()=>{sizeVal.textContent=sizeSlider.value});
-sizeSlider.addEventListener('change',()=>{
-  gridSize=parseInt(sizeSlider.value);
-  stopSim();
-  allocGrid();
-  seedFromText(document.getElementById('textInput').value);
-  render();updateStats();
-});
+// ── Warp a quad to WARP×WARP and analyse the zebra border ─────────────────────
+let _warpCache=null;
 
-const speedSlider=document.getElementById('speedSlider');
-const speedVal=document.getElementById('speedVal');
-speedSlider.addEventListener('input',()=>{
-  speed=parseInt(speedSlider.value);
-  speedVal.textContent=speed;
-});
+function analyseQuad(gray, pts){
+  let srcTri,dstTri,M,warped,wbin;
+  try{
+    srcTri=cv.matFromArray(4,1,cv.CV_32FC2,[
+      pts[0].x,pts[0].y, pts[1].x,pts[1].y, pts[2].x,pts[2].y, pts[3].x,pts[3].y
+    ]);
+    dstTri=cv.matFromArray(4,1,cv.CV_32FC2,[
+      0,0, WARP,0, WARP,WARP, 0,WARP
+    ]);
+    M=cv.getPerspectiveTransform(srcTri,dstTri);
+    warped=new cv.Mat();
+    cv.warpPerspective(gray,warped,M,new cv.Size(WARP,WARP),
+      cv.INTER_LINEAR,cv.BORDER_CONSTANT,new cv.Scalar(127));
 
-document.getElementById('btnStart').addEventListener('click',toggleSim);
-document.getElementById('btnStep').addEventListener('click',()=>{
-  if(running)stopSim();
-  step();render();updateStats();
-});
-document.getElementById('btnReseed').addEventListener('click',reseed);
-document.getElementById('btnClear').addEventListener('click',()=>{
-  stopSim();clearGrid();render();updateStats();
-});
-document.getElementById('btnExport').addEventListener('click',exportPNG);
+    // Otsu on the rectified patch — inside the code, lighting is uniform
+    wbin=new cv.Mat();
+    cv.threshold(warped,wbin,0,255,cv.THRESH_BINARY_INV|cv.THRESH_OTSU);
 
-document.getElementById('mobile-toggle').addEventListener('click',()=>{
-  document.getElementById('panel').classList.toggle('open');
-});
-canvas.addEventListener('click',()=>{
-  if(window.innerWidth<=768)document.getElementById('panel').classList.remove('open');
-});
+    const d=wbin.data;
+    const px=(x,y)=>{
+      x=Math.round(x);y=Math.round(y);
+      if(x<0||x>=WARP||y<0||y>=WARP) return 0;
+      return d[y*WARP+x]>0?1:0;
+    };
 
-document.addEventListener('keydown',e=>{
-  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
-  if(e.code==='Space'){e.preventDefault();toggleSim()}
-  else if(e.code==='ArrowRight'){e.preventDefault();if(running)stopSim();step();render();updateStats()}
-  else if(e.code==='KeyR'){reseed()}
-  else if(e.code==='KeyC'){stopSim();clearGrid();render();updateStats()}
-});
+    // The zebra ring may sit right at the edge, or a few px inside
+    // (quad may be the black frame outline). Test several insets.
+    let bestRing=null;
+    for(const inset of [2,4,6,9,12,16,22,30]){
+      const ring=readRing(px, inset);
+      if(!ring) continue;
+      if(!bestRing || ring.score>bestRing.score) bestRing={...ring, inset};
+    }
+    if(!bestRing) return null;
 
-/* ===== ИНИЦИАЛИЗАЦИЯ ===== */
-allocGrid();
-seedFromText(document.getElementById('textInput').value);
-render();
-updateStats();
+    // grid inside = total cells across minus the 2 border cells
+    const gridN = Math.max(1, bestRing.totalCells - 2);
+
+    // keep warped patch for preview
+    _warpCache = {mat: warped.clone(), inset: bestRing.inset, totalCells: bestRing.totalCells};
+
+    return {
+      score: bestRing.score,
+      altRatio: bestRing.altRatio,
+      totalCells: bestRing.totalCells,
+      gridN,
+      inset: bestRing.inset
+    };
+  }catch(e){
+    return null;
+  }finally{
+    [srcTri,dstTri,M,warped,wbin].forEach(m=>{try{if(m)m.delete();}catch(e){}});
+  }
+}
+
+// ── Read the border ring at a given inset, measure zebra quality ──────────────
+function readRing(px, inset){
+  const a=inset, b=WARP-1-inset;
+  if(b-a < 40) return null;
+
+  // Sample the 4 sides
+  const top=[],bottom=[],left=[],right=[];
+  for(let x=a;x<=b;x++){ top.push(px(x,a)); bottom.push(px(x,b)); }
+  for(let y=a;y<=b;y++){ left.push(px(a,y)); right.push(px(b,y)); }
+
+  const sides=[top,bottom,left,right];
+
+  // Alternation ratio: how often neighbouring samples differ
+  let alt=0,tot=0;
+  for(const s of sides){
+    for(let i=0;i<s.length-1;i++){ if(s[i]!==s[i+1]) alt++; tot++; }
+  }
+  const altRatio = tot? alt/tot : 0;
+
+  // Balance: zebra is ~50% dark
+  let dark=0,cnt=0;
+  for(const s of sides){ for(const v of s){ dark+=v; cnt++; } }
+  const darkRatio = cnt? dark/cnt : 0;
+  const balance = 1 - Math.abs(darkRatio-0.5)*2;   // 1 when exactly 50/50
+
+  // Cell count per side via run lengths — all 4 sides must agree
+  const counts = sides.map(s=>countCells(s)).filter(c=>c);
+  if(counts.length<4) return null;
+
+  const mn=Math.min(...counts), mx=Math.max(...counts);
+  const agree = mx>0 ? mn/mx : 0;               // 1 when all sides give same count
+  const totalCells = Math.round(counts.reduce((x,y)=>x+y,0)/counts.length);
+
+  // Corners must be dark (black squares at all four corners)
+  const cornersDark = [px(a+2,a+2),px(b-2,a+2),px(b-2,b-2),px(a+2,b-2)]
+                        .reduce((s,v)=>s+v,0)/4;
+
+  // Zebra must have a reasonable number of cells
+  if(totalCells<6||totalCells>120) return null;
+
+  // Combined score
+  const score = altRatio*0.35 + balance*0.2 + agree*0.25 + cornersDark*0.2;
+
+  return {score, altRatio, balance, agree, totalCells, cornersDark};
+}
+
+// ── Count cells along one side using run lengths ──────────────────────────────
+function countCells(arr){
+  const runs=[];
+  let cur=arr[0],cnt=1;
+  for(let i=1;i<arr.length;i++){
+    if(arr[i]===cur) cnt++;
+    else{runs.push(cnt);cur=arr[i];cnt=1;}
+  }
+  runs.push(cnt);
+  if(runs.length<5) return null;
+
+  // Drop first/last runs (edge artefacts), take median as unit cell size
+  const inner=runs.slice(1,-1).filter(r=>r>=1);
+  if(inner.length<3) return null;
+  const sorted=[...inner].sort((a,b)=>a-b);
+  const unit=sorted[Math.floor(sorted.length/2)];
+  if(unit<2) return null;
+
+  return Math.round(arr.length/unit);
+}
+
+// ══ DRAWING ═══════════════════════════════════════════════════════════════════
+function drawResult(ctx, r){
+  const p=r.corners;
+  const N=r.totalCells;          // cells across the full code incl. border
+  const gridN=r.gridN;
+
+  // Bilinear interpolation across the quad: (u,v) in 0..1 → pixel
+  const at=(u,v)=>{
+    const topX=p[0].x+(p[1].x-p[0].x)*u, topY=p[0].y+(p[1].y-p[0].y)*u;
+    const botX=p[3].x+(p[2].x-p[3].x)*u, botY=p[3].y+(p[2].y-p[3].y)*u;
+    return {x:topX+(botX-topX)*v, y:topY+(botY-topY)*v};
+  };
+
+  // Outer quad outline
+  ctx.save();
+  ctx.strokeStyle='#ffd700';ctx.lineWidth=Math.max(1.5,ctx.canvas.width*0.002);
+  ctx.setLineDash([6,4]);
+  ctx.beginPath();
+  ctx.moveTo(p[0].x,p[0].y);
+  for(let i=1;i<4;i++) ctx.lineTo(p[i].x,p[i].y);
+  ctx.closePath();ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // Inner grid region: skip 1 border cell on each side
+  const m=1/N;                   // one cell in normalised coords
+  const gs=(1-2*m)/gridN;        // grid step in normalised coords
+
+  // Grid lines
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,0.25)';
+  ctx.lineWidth=Math.max(0.6,ctx.canvas.width*0.0008);
+  for(let i=0;i<=gridN;i++){
+    const t=m+gs*i;
+    ctx.beginPath();
+    let a=at(t,m),b=at(t,1-m);
+    ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    ctx.beginPath();
+    a=at(m,t);b=at(1-m,t);
+    ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  }
+
+  // Dot at every cell centre
+  const cellPx = Math.hypot(p[1].x-p[0].x,p[1].y-p[0].y)/N;
+  const dotR   = Math.max(1, cellPx*0.16);
+  ctx.fillStyle='rgba(255,255,255,0.75)';
+  for(let row=0;row<gridN;row++){
+    for(let col=0;col<gridN;col++){
+      const c=at(m+gs*(col+0.5), m+gs*(row+0.5));
+      ctx.beginPath();ctx.arc(c.x,c.y,dotR,0,Math.PI*2);ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  // Red squares over the four corner cells
+  ctx.save();
+  ctx.globalAlpha=0.8;ctx.fillStyle='#cc0000';
+  ctx.strokeStyle='#ff5050';ctx.lineWidth=Math.max(1,cellPx*0.12);
+  const cornerCells=[[0,0],[N-1,0],[N-1,N-1],[0,N-1]];
+  for(const [cx,cy] of cornerCells){
+    const q=[
+      at(cx/N,      cy/N),
+      at((cx+1)/N,  cy/N),
+      at((cx+1)/N,  (cy+1)/N),
+      at(cx/N,      (cy+1)/N)
+    ];
+    ctx.beginPath();
+    ctx.moveTo(q[0].x,q[0].y);
+    for(let i=1;i<4;i++) ctx.lineTo(q[i].x,q[i].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha=1;ctx.stroke();ctx.globalAlpha=0.8;
+  }
+  ctx.restore();
+}
+
+// ── Show the rectified patch in the side preview ──────────────────────────────
+function showWarp(r){
+  if(!_warpCache) return;
+  try{
+    warpCanvas.width=WARP;warpCanvas.height=WARP;
+    cv.imshow(warpCanvas,_warpCache.mat);
+    warpWrap.style.display='block';
+    _warpCache.mat.delete();
+    _warpCache=null;
+  }catch(e){}
+}
+
+L('Завантаження OpenCV.js...','warn');
 </script>
 </body>
 </html>
