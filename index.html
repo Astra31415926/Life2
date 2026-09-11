@@ -2,386 +2,229 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ZEBRA FINDER · v6.2</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>TAINA · Scanner v6 · Two-Pass</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#060608;color:#9a9aaa;font:11px/1.6 'Courier New',monospace}
-#app{display:grid;grid-template-columns:460px 1fr;height:100vh;overflow:hidden}
-#left{display:flex;flex-direction:column;border-right:1px solid #141420;overflow:hidden}
-#topbar{padding:8px 10px;border-bottom:1px solid #141420;display:flex;gap:5px;align-items:center;flex-shrink:0;flex-wrap:wrap}
-h1{font-size:10px;letter-spacing:3px;color:#3a7aaa;margin-right:4px}
-.btn{background:#0e0e16;border:1px solid #1e1e2e;color:#6a6a8a;padding:4px 10px;cursor:pointer;font:inherit;letter-spacing:1px}
-.btn:hover{border-color:#3a7aaa;color:#ccc}
+:root{
+  --bg:#06070a;--panel:#0d0f14;--border:#1a1d26;
+  --text:#c8ccd8;--muted:#4a4f62;--accent:#4a90d9;
+  --ok:#3ec96e;--warn:#e8a840;--err:#e85050;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font:12px/1.5 'Courier New',monospace}
+#app{display:grid;grid-template-rows:auto 1fr auto;height:100vh;max-width:900px;margin:0 auto}
+#topbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+#logo{font-size:11px;letter-spacing:4px;color:var(--accent);flex-shrink:0}
+.sep{width:1px;height:16px;background:var(--border)}
+.btn{background:var(--panel);border:1px solid var(--border);color:var(--muted);padding:5px 12px;cursor:pointer;font:inherit;font-size:11px;letter-spacing:1px;transition:border-color .15s,color .15s;flex-shrink:0;}
+.btn:hover{border-color:var(--accent);color:var(--text)}
 input[type=file]{display:none}
-#canvas-wrap{flex:1;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
-#cnv{display:block;max-width:100%;max-height:100%;image-rendering:pixelated}
-#vidWrap{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#000}
-#vid{max-width:100%;max-height:100%;display:block}
-#status-bar{flex-shrink:0;padding:5px 10px;border-top:1px solid #141420;font-size:10px;letter-spacing:2px;min-height:24px}
-#status-bar span{font-weight:700;font-size:12px}
-#right{display:flex;flex-direction:column;overflow:hidden}
-#tabs{display:flex;border-bottom:1px solid #141420;flex-shrink:0}
-.tab{padding:6px 14px;cursor:pointer;font:inherit;font-size:10px;letter-spacing:2px;color:#444;background:none;border:none;border-right:1px solid #141420}
-.tab.sel{color:#3a7aaa;background:#0a0a12}
-#pane-log,#pane-rgb{flex:1;overflow-y:auto;padding:8px 10px;line-height:1.75;display:none}
-#pane-log.vis,#pane-rgb.vis{display:block}
+#cv-badge{font-size:9px;letter-spacing:2px;padding:3px 7px;border:1px solid var(--border);color:var(--muted);flex-shrink:0;transition:border-color .3s,color .3s}
+#cv-badge.ok{border-color:var(--ok);color:var(--ok)}
+#cv-badge.err{border-color:var(--err);color:var(--err)}
+#cam-status{margin-left:auto;font-size:10px;letter-spacing:2px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+#cam-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .3s;}
+#cam-dot.live{background:var(--ok);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+#main{display:grid;grid-template-columns:1fr 320px;overflow:hidden}
+@media(max-width:660px){#main{grid-template-columns:1fr;grid-template-rows:1fr auto}}
+#viewport{position:relative;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+#vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;}
+#vid.show{display:block}
+#cnv-main{display:block;max-width:100%;max-height:100%;image-rendering:pixelated}
+#overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;}
+#scan-ring{width:220px;height:220px;border:2px solid rgba(74,144,217,.4);border-radius:4px;display:none;position:relative;}
+#scan-ring.show{display:block}
+#scan-ring::before,#scan-ring::after{content:'';position:absolute;width:20px;height:20px;border-color:var(--accent);border-style:solid;}
+#scan-ring::before{top:-2px;left:-2px;border-width:2px 0 0 2px}
+#scan-ring::after{bottom:-2px;right:-2px;border-width:0 2px 2px 0}
+#progress-bar{position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--border);}
+#progress-fill{height:100%;background:var(--accent);width:0%;transition:width .2s}
+#frame-counter{position:absolute;top:8px;right:8px;font-size:10px;letter-spacing:2px;color:rgba(74,144,217,.7);display:none;}
+#sidebar{display:flex;flex-direction:column;border-left:1px solid var(--border);overflow:hidden;}
+#tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{flex:1;padding:7px;cursor:pointer;font:inherit;font-size:10px;letter-spacing:2px;color:var(--muted);background:none;border:none;border-right:1px solid var(--border);transition:color .15s,background .15s;}
+.tab:last-child{border-right:none}
+.tab.sel{color:var(--accent);background:rgba(74,144,217,.07)}
+#pane-log,#pane-rgb,#pane-diag{flex:1;overflow-y:auto;padding:8px 10px;display:none;}
+#pane-log.vis,#pane-rgb.vis,#pane-diag.vis{display:block}
+#pane-log{line-height:2}
+.lh{color:#2a6090;margin-top:4px}.lok{color:var(--ok)}.lw{color:var(--warn)}.le{color:var(--err)}.li{color:var(--muted)}
 #rgb-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:4px 0}
 .rgb-tile{display:flex;flex-direction:column;gap:3px}
-.rgb-tile canvas{width:100%;image-rendering:pixelated;border:1px solid #1e1e2e}
+.rgb-tile canvas{width:100%;image-rendering:pixelated;border:1px solid var(--border)}
 .rgb-lbl{font-size:9px;letter-spacing:2px;text-align:center;color:#3a5a7a}
-.lh{color:#2a6090;margin-top:5px}.lok{color:#2a7a3a}.lw{color:#8a6010}.le{color:#8a2020}.li{color:#6a6a8a}
+#diag-content{line-height:1.9;font-size:11px}
+#diag-content .dk{color:var(--accent)}.dk+span{color:var(--muted)}
+#statusbar{padding:6px 12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+#st{font-size:11px;letter-spacing:2px;flex:1}
+#result-box{font-size:13px;font-weight:700;letter-spacing:1px;color:var(--ok);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 </style>
 </head>
 <body>
 <div id="app">
-  <div id="left">
-    <div id="topbar">
-      <h1>ZEBRA·v6.2</h1>
-      <label class="btn">▶ Файл<input type="file" id="fin" accept="image/*"></label>
-      <button class="btn" id="camBtn">◎ Камера</button>
-      <button class="btn" id="capBtn" style="display:none">● Знімок</button>
-      <button class="btn" id="stopBtn" style="display:none">■ Стоп</button>
+  <div id="topbar">
+    <span id="logo">TAINA·SCAN·v6</span>
+    <div class="sep"></div>
+    <label class="btn">▶ Файл<input type="file" id="fin" accept="image/*"></label>
+    <button class="btn" id="camBtn">◎ Камера</button>
+    <button class="btn" id="stopBtn" style="display:none">■ Стоп</button>
+    <div class="sep"></div>
+    <span id="cv-badge">CV·…</span>
+    <div id="cam-status">
+      <div id="cam-dot"></div>
+      <span id="cam-label">очікування</span>
     </div>
-    <div id="canvas-wrap">
-      <canvas id="cnv"></canvas>
-      <div id="vidWrap"><video id="vid" autoplay playsinline muted></video></div>
-    </div>
-    <div id="status-bar"><span id="st" style="color:#2a2a3a">— очікування —</span></div>
   </div>
-  <div id="right">
-    <div id="tabs">
-      <button class="tab sel" data-pane="log">ДІАГНОСТИКА</button>
-      <button class="tab" data-pane="rgb">RGB-КАНАЛИ</button>
+  <div id="main">
+    <div id="viewport">
+      <canvas id="cnv-main"></canvas>
+      <video id="vid" autoplay playsinline muted></video>
+      <div id="overlay">
+        <div id="scan-ring"><span id="frame-counter"></span></div>
+      </div>
+      <div id="progress-bar"><div id="progress-fill"></div></div>
     </div>
-    <div id="pane-log" class="vis"></div>
-    <div id="pane-rgb"><div id="rgb-grid"></div></div>
+    <div id="sidebar">
+      <div id="tabs">
+        <button class="tab sel" data-pane="log">ЛОГ</button>
+        <button class="tab" data-pane="rgb">RGB</button>
+        <button class="tab" data-pane="diag">DIAG</button>
+      </div>
+      <div id="pane-log" class="vis"></div>
+      <div id="pane-rgb"><div id="rgb-grid"></div></div>
+      <div id="pane-diag"><div id="diag-content"></div></div>
+    </div>
+  </div>
+  <div id="statusbar">
+    <span id="st" style="color:var(--muted)">— завантаження OpenCV… —</span>
+    <span id="result-box"></span>
   </div>
 </div>
+
+<!-- ── OpenCV.js: Module callback BEFORE script loads ── -->
+<script>
+var cvReady = false;
+window.Module = {
+  onRuntimeInitialized: function() {
+    cvReady = true;
+    var b = document.getElementById('cv-badge');
+    if (b) { b.textContent = 'CV·OK'; b.classList.add('ok'); }
+    var s = document.getElementById('st');
+    if (s && s.textContent.indexOf('OpenCV') !== -1) {
+      s.textContent = '— готово —'; s.style.color = 'var(--muted)';
+    }
+  }
+};
+</script>
+<script async src="https://docs.opencv.org/4.9.0/opencv.js"
+  onerror="(function(){var b=document.getElementById('cv-badge');b.textContent='CV·N/A';b.classList.add('err');document.getElementById('st').textContent='— готово (без OpenCV) —';document.getElementById('st').style.color='var(--muted)'})()">
+</script>
+
 <script>
 'use strict';
 
-// ── LOG ──
+// ════════════════════════════════════════════════════════
+//  LOG
+// ════════════════════════════════════════════════════════
 const logEl=document.getElementById('pane-log');
-const aL=(m,c)=>{const d=document.createElement('div');d.textContent=m;if(c)d.className=c;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;};
+const aL=(m,c)=>{const d=document.createElement('div');d.textContent=m;if(c)d.className=c;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight};
 const Lh=m=>aL('── '+m,'lh'),Lok=m=>aL('✓ '+m,'lok'),Lw=m=>aL('⚠ '+m,'lw'),Le=m=>aL('✗ '+m,'le'),Li=m=>aL(m,'li');
-const clrLog=()=>{logEl.innerHTML='';};
-const setSt=(t,ok)=>{const el=document.getElementById('st');el.textContent=t;el.style.color=ok===true?'#55eb5a':ok===false?'#eb5555':'#888';};
+const clrLog=()=>{logEl.innerHTML=''};
+const setSt=(t,c)=>{const el=document.getElementById('st');el.textContent=t;el.style.color=c==='ok'?'var(--ok)':c==='err'?'var(--err)':c==='warn'?'var(--warn)':'var(--muted)'};
+const setResult=t=>{document.getElementById('result-box').textContent=t||''};
 
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('sel'));
     btn.classList.add('sel');
     const p=btn.dataset.pane;
-    ['log','rgb'].forEach(n=>document.getElementById('pane-'+n).classList.toggle('vis',n===p));
+    ['log','rgb','diag'].forEach(n=>document.getElementById('pane-'+n).classList.toggle('vis',n===p));
   });
 });
 
 // ════════════════════════════════════════════════════════
-//  PRE-PROCESSING PIPELINE
-//  Мета: підготувати погане зображення (камера, монітор)
-//  до незмінного декодера v5.1.
-//  Декодер нижче — заморожений, не змінювати!
+//  UTILS  [v5 — unchanged]
 // ════════════════════════════════════════════════════════
+function toGray(d,w,h){const g=new Uint8Array(w*h);for(let i=0;i<w*h;i++)g[i]=(77*d[i*4]+150*d[i*4+1]+29*d[i*4+2])>>8;return g}
 
-// ── EXIF ──
 function getExifOrientation(buf){
-  const v=new DataView(buf);
-  if(v.getUint16(0)!==0xFFD8)return 1;
-  let off=2;
-  while(off<v.byteLength-4){
-    const m=v.getUint16(off);
-    if(m===0xFFE1){
-      if(v.getUint32(off+4)!==0x45786966)return 1;
-      const le=v.getUint16(off+10)===0x4949;
-      const ifd=off+10+v.getUint32(off+14,le);
-      const n=v.getUint16(ifd,le);
-      for(let i=0;i<n;i++)if(v.getUint16(ifd+2+i*12,le)===0x0112)return v.getUint16(ifd+2+i*12+8,le);
-      return 1;
-    }
-    if((m&0xFF00)!==0xFF00)break;
-    off+=2+v.getUint16(off+2);
-  }
-  return 1;
+  const v=new DataView(buf);if(v.getUint16(0)!==0xFFD8)return 1;let off=2;
+  while(off<v.byteLength-4){const m=v.getUint16(off);if(m===0xFFE1){if(v.getUint32(off+4)!==0x45786966)return 1;const le=v.getUint16(off+10)===0x4949;const ifd=off+10+v.getUint32(off+14,le);const n=v.getUint16(ifd,le);for(let i=0;i<n;i++)if(v.getUint16(ifd+2+i*12,le)===0x0112)return v.getUint16(ifd+2+i*12+8,le);return 1;}if((m&0xFF00)!==0xFF00)break;off+=2+v.getUint16(off+2);}return 1;
+}
+function applyExifRotation(img,orient){const w=img.naturalWidth,h=img.naturalHeight,swap=orient>=5&&orient<=8;const c=document.createElement('canvas');c.width=swap?h:w;c.height=swap?w:h;const ctx=c.getContext('2d');const M=[[],[1,0,0,1,0,0],[-1,0,0,1,w,0],[-1,0,0,-1,w,h],[1,0,0,-1,0,h],[0,1,1,0,0,0],[0,1,-1,0,h,0],[0,-1,-1,0,h,w],[0,-1,1,0,0,w]];const t=M[orient]||M[1];ctx.transform(t[0],t[1],t[2],t[3],t[4],t[5]);ctx.drawImage(img,0,0);return c;}
+
+function gaussianBlur(idata,w,h,passes=1){const k=[1,2,1],ksum=4;let d=new Float32Array(idata.data);for(let p=0;p<passes;p++){const tmp=new Float32Array(d.length);for(let y=0;y<h;y++)for(let x=0;x<w;x++){for(let c=0;c<3;c++){let s=0;for(let dx=-1;dx<=1;dx++)s+=d[(y*w+Math.max(0,Math.min(w-1,x+dx)))*4+c]*k[dx+1];tmp[(y*w+x)*4+c]=s/ksum;}tmp[(y*w+x)*4+3]=255;}const tmp2=new Float32Array(tmp.length);for(let y=0;y<h;y++)for(let x=0;x<w;x++){for(let c=0;c<3;c++){let s=0;for(let dy=-1;dy<=1;dy++)s+=tmp[(Math.max(0,Math.min(h-1,y+dy))*w+x)*4+c]*k[dy+1];tmp2[(y*w+x)*4+c]=s/ksum;}tmp2[(y*w+x)*4+3]=255;}d=tmp2;}const out=new ImageData(w,h);for(let i=0;i<d.length;i++)out.data[i]=Math.round(Math.max(0,Math.min(255,d[i])));return out;}
+
+function unsharp(idata,w,h,amount=0.8){const bl=gaussianBlur(idata,w,h,1),out=new ImageData(w,h);for(let i=0;i<w*h*4;i+=4)for(let c=0;c<3;c++)out.data[i+c]=Math.max(0,Math.min(255,Math.round(idata.data[i+c]+amount*(idata.data[i+c]-bl.data[i+c]))));for(let i=3;i<w*h*4;i+=4)out.data[i]=255;return out;}
+
+function localContrast(idata,w,h,radius=40){const gray=new Uint8Array(w*h);for(let i=0;i<w*h;i++)gray[i]=(77*idata.data[i*4]+150*idata.data[i*4+1]+29*idata.data[i*4+2])>>8;const ii=new Float32Array(w*h),ii2=new Float32Array(w*h);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const v=gray[y*w+x];ii[y*w+x]=v+(x>0?ii[y*w+x-1]:0)+(y>0?ii[(y-1)*w+x]:0)-(x>0&&y>0?ii[(y-1)*w+x-1]:0);ii2[y*w+x]=v*v+(x>0?ii2[y*w+x-1]:0)+(y>0?ii2[(y-1)*w+x]:0)-(x>0&&y>0?ii2[(y-1)*w+x-1]:0);}const out=new ImageData(w,h);for(let y=0;y<h;y++)for(let x=0;x<w;x++){const x1=Math.max(0,x-radius),x2=Math.min(w-1,x+radius),y1=Math.max(0,y-radius),y2=Math.min(h-1,y+radius);const cnt=(x2-x1+1)*(y2-y1+1);const sm=ii[y2*w+x2]-(x1?ii[y2*w+x1-1]:0)-(y1?ii[(y1-1)*w+x2]:0)+(x1&&y1?ii[(y1-1)*w+x1-1]:0);const sm2=ii2[y2*w+x2]-(x1?ii2[y2*w+x1-1]:0)-(y1?ii2[(y1-1)*w+x2]:0)+(x1&&y1?ii2[(y1-1)*w+x1-1]:0);const mean=sm/cnt,std=Math.sqrt(Math.max(0,sm2/cnt-mean*mean)),scale=std>8?60/std:1;const i=y*w+x;for(let c=0;c<3;c++){const ch=idata.data[i*4+c];out.data[i*4+c]=Math.max(0,Math.min(255,Math.round(128+(ch-mean)*scale)));}out.data[i*4+3]=255;}return out;}
+
+// ════════════════════════════════════════════════════════
+//  STAGE 1 FALLBACK — Sobel/Otsu contour finder [v5 — unchanged]
+// ════════════════════════════════════════════════════════
+function otsuThreshold(gray){const hist=new Int32Array(256);for(const v of gray)hist[v]++;const n=gray.length;let sum=0;for(let i=0;i<256;i++)sum+=i*hist[i];let sumB=0,wB=0,best=0,thr=128;for(let t=0;t<256;t++){wB+=hist[t];if(!wB)continue;const wF=n-wB;if(!wF)break;sumB+=t*hist[t];const mB=sumB/wB,mF=(sum-sumB)/wF,sc=wB*wF*(mB-mF)**2;if(sc>best){best=sc;thr=t;}}return thr;}
+function sobelEdges(gray,w,h){const out=new Uint8Array(w*h);for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const gx=(-gray[(y-1)*w+(x-1)]+gray[(y-1)*w+(x+1)]-2*gray[y*w+(x-1)]+2*gray[y*w+(x+1)]-gray[(y+1)*w+(x-1)]+gray[(y+1)*w+(x+1)]);const gy=(-gray[(y-1)*w+(x-1)]-2*gray[(y-1)*w+x]-gray[(y-1)*w+(x+1)]+gray[(y+1)*w+(x-1)]+2*gray[(y+1)*w+x]+gray[(y+1)*w+(x+1)]);out[y*w+x]=Math.min(255,(Math.sqrt(gx*gx+gy*gy)*0.5)|0);}return out;}
+function dilateMask(mask,w,h,r=3){const out=new Uint8Array(w*h);for(let y=r;y<h-r;y++)for(let x=r;x<w-r;x++){outer:for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++)if(mask[(y+dy)*w+(x+dx)]){out[y*w+x]=1;break outer;}}return out;}
+function largestComponent(mask,w,h){const labels=new Int32Array(w*h);let best=0,bestPts=null;const stack=[];for(let s=0;s<w*h;s++){if(!mask[s]||labels[s])continue;const pts=[];stack.length=0;stack.push(s);labels[s]=s+1;while(stack.length){const p=stack.pop();pts.push(p);const x=p%w,y=(p/w)|0;for(const[nx,ny]of[[x-1,y],[x+1,y],[x,y-1],[x,y+1]]){if(nx<0||ny<0||nx>=w||ny>=h)continue;const q=ny*w+nx;if(mask[q]&&!labels[q]){labels[q]=s+1;stack.push(q);}}}if(pts.length>best){best=pts.length;bestPts=pts;}}return bestPts?bestPts.map(p=>({x:p%w,y:(p/w)|0})):null;}
+function convexHull2D(pts){const s=[...pts].sort((a,b)=>a.x===b.x?a.y-b.y:a.x-b.x);const cross=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);const lo=[],hi=[];for(const p of s){while(lo.length>=2&&cross(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p);}for(let i=s.length-1;i>=0;i--){const p=s[i];while(hi.length>=2&&cross(hi[hi.length-2],hi[hi.length-1],p)<=0)hi.pop();hi.push(p);}hi.pop();lo.pop();return[...lo,...hi];}
+function dpReduce(pts,eps){if(pts.length<=2)return pts;const[p0,pN]=[pts[0],pts[pts.length-1]];const dx=pN.x-p0.x,dy=pN.y-p0.y,len=Math.hypot(dx,dy);let maxD=0,idx=0;for(let i=1;i<pts.length-1;i++){const d=len?Math.abs(dy*(pts[i].x-p0.x)-dx*(pts[i].y-p0.y))/len:Math.hypot(pts[i].x-p0.x,pts[i].y-p0.y);if(d>maxD){maxD=d;idx=i;}}if(maxD>eps){const l=dpReduce(pts.slice(0,idx+1),eps),r=dpReduce(pts.slice(idx),eps);return[...l.slice(0,-1),...r];}return[p0,pN];}
+
+function sortQuadCorners(pts){
+  if(!pts||pts.length<4)return null;
+  const cx=pts.reduce((s,p)=>s+p.x,0)/pts.length;
+  const cy=pts.reduce((s,p)=>s+p.y,0)/pts.length;
+  const q=[null,null,null,null];
+  for(const p of pts){const qi=(p.x>=cx?1:0)+(p.y>=cy?2:0);const d=Math.hypot(p.x-cx,p.y-cy);if(!q[qi]||d>q[qi].d)q[qi]={x:p.x,y:p.y,d};}
+  if(q.some(v=>!v))return null;
+  return{tl:{x:q[0].x,y:q[0].y},tr:{x:q[1].x,y:q[1].y},bl:{x:q[2].x,y:q[2].y},br:{x:q[3].x,y:q[3].y}};
 }
 
-function applyExifRotation(img, orient){
-  const w=img.naturalWidth, h=img.naturalHeight;
-  const swap=orient>=5&&orient<=8;
-  const c=document.createElement('canvas');
-  c.width=swap?h:w; c.height=swap?w:h;
-  const ctx=c.getContext('2d');
-  const M=[[],[1,0,0,1,0,0],[-1,0,0,1,w,0],[-1,0,0,-1,w,h],
-            [1,0,0,-1,0,h],[0,1,1,0,0,0],[0,1,-1,0,h,0],
-            [0,-1,-1,0,h,w],[0,-1,1,0,0,w]];
-  const t=M[orient]||M[1];
-  ctx.transform(t[0],t[1],t[2],t[3],t[4],t[5]);
-  ctx.drawImage(img,0,0);
-  return c;
-}
-
-// ── ШУМОЗАГЛУШЕННЯ: Gaussian blur (separable, ядро 3×3) ──
-function gaussianBlur(idata, w, h, passes=1){
-  const k=[1,2,1], ksum=4;
-  let d=new Float32Array(idata.data);
-  for(let p=0;p<passes;p++){
-    const tmp=new Float32Array(d.length);
-    // horizontal
-    for(let y=0;y<h;y++) for(let x=0;x<w;x++){
-      for(let c=0;c<3;c++){
-        let s=0;
-        for(let dx=-1;dx<=1;dx++) s+=d[(y*w+Math.max(0,Math.min(w-1,x+dx)))*4+c]*k[dx+1];
-        tmp[(y*w+x)*4+c]=s/ksum;
-      }
-      tmp[(y*w+x)*4+3]=255;
-    }
-    // vertical
-    const tmp2=new Float32Array(tmp.length);
-    for(let y=0;y<h;y++) for(let x=0;x<w;x++){
-      for(let c=0;c<3;c++){
-        let s=0;
-        for(let dy=-1;dy<=1;dy++) s+=tmp[(Math.max(0,Math.min(h-1,y+dy))*w+x)*4+c]*k[dy+1];
-        tmp2[(y*w+x)*4+c]=s/ksum;
-      }
-      tmp2[(y*w+x)*4+3]=255;
-    }
-    d=tmp2;
-  }
-  const out=new ImageData(w,h);
-  for(let i=0;i<d.length;i++) out.data[i]=Math.round(Math.max(0,Math.min(255,d[i])));
-  return out;
-}
-
-// ── РІЗКІСТЬ: Unsharp mask ──
-function unsharpMask(idata, w, h, amount=0.6){
-  const blurred=gaussianBlur(idata,w,h,1);
-  const out=new ImageData(w,h);
-  for(let i=0;i<w*h*4;i+=4){
-    for(let c=0;c<3;c++){
-      const orig=idata.data[i+c], blur=blurred.data[i+c];
-      out.data[i+c]=Math.max(0,Math.min(255,Math.round(orig+amount*(orig-blur))));
-    }
-    out.data[i+3]=255;
-  }
-  return out;
-}
-
-// ── КОНТРАСТ: CLAHE-подібний (локальна нормалізація) ──
-function localContrast(idata, w, h, radius=40){
-  // Спрощений варіант: для кожного пікселя знаходимо локальний min/max
-  // через integral image і розтягуємо діапазон
-  const gray=new Uint8Array(w*h);
-  for(let i=0;i<w*h;i++) gray[i]=(77*idata.data[i*4]+150*idata.data[i*4+1]+29*idata.data[i*4+2])>>8;
-
-  // Integral image для gray
-  const ii=new Float32Array(w*h);
-  const ii2=new Float32Array(w*h);
-  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
-    const v=gray[y*w+x];
-    ii[y*w+x]=v+(x>0?ii[y*w+x-1]:0)+(y>0?ii[(y-1)*w+x]:0)-(x>0&&y>0?ii[(y-1)*w+x-1]:0);
-    ii2[y*w+x]=v*v+(x>0?ii2[y*w+x-1]:0)+(y>0?ii2[(y-1)*w+x]:0)-(x>0&&y>0?ii2[(y-1)*w+x-1]:0);
-  }
-
-  const out=new ImageData(w,h);
-  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
-    const x1=Math.max(0,x-radius),x2=Math.min(w-1,x+radius);
-    const y1=Math.max(0,y-radius),y2=Math.min(h-1,y+radius);
-    const cnt=(x2-x1+1)*(y2-y1+1);
-    const sm=ii[y2*w+x2]-(x1?ii[y2*w+x1-1]:0)-(y1?ii[(y1-1)*w+x2]:0)+(x1&&y1?ii[(y1-1)*w+x1-1]:0);
-    const sm2=ii2[y2*w+x2]-(x1?ii2[y2*w+x1-1]:0)-(y1?ii2[(y1-1)*w+x2]:0)+(x1&&y1?ii2[(y1-1)*w+x1-1]:0);
-    const mean=sm/cnt;
-    const std=Math.sqrt(Math.max(0,sm2/cnt-mean*mean));
-    const scale=std>8?60/std:1; // нормалізуємо до std=60
-    const i=y*w+x;
-    for(let c=0;c<3;c++){
-      const ch=idata.data[i*4+c];
-      const norm=Math.round(128+(ch-mean)*scale);
-      out.data[i*4+c]=Math.max(0,Math.min(255,norm));
-    }
-    out.data[i*4+3]=255;
-  }
-  return out;
-}
-
-// ── ГОЛОВНА ФУНКЦІЯ ПРЕПРОЦЕСИНГУ ──
-// Вхід: HTMLImageElement + EXIF orient
-// Вихід: ImageData з бінаризованими каналами R/G/B
-function preprocess(img, orient, maxSide=900){
-  Lh('PRE-PROCESSING');
-
-  // 1. EXIF rotation
-  let src;
-  if(orient&&orient!==1){
-    src=applyExifRotation(img,orient);
-    Li('  EXIF rotation: '+orient);
-  } else {
-    src=document.createElement('canvas');
-    src.width=img.naturalWidth; src.height=img.naturalHeight;
-    src.getContext('2d').drawImage(img,0,0);
-  }
-
-  // 2. Resize
-  let w=src.width, h=src.height;
-  if(Math.max(w,h)>maxSide){const s=maxSide/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
-  const c=document.createElement('canvas');c.width=w;c.height=h;
-  c.getContext('2d').drawImage(src,0,0,w,h);
-  const idata=c.getContext('2d').getImageData(0,0,w,h);
-  Li('  Розмір: '+w+'×'+h);
-
-  // 3. Легкий blur — прибирає муар і піксельний шум монітора
-  const blurred=gaussianBlur(idata,w,h,1);
-  Li('  → Gaussian blur 1px (придушення муару)');
-
-  // 4. Бінаризація по каналах R, G, B окремо (Otsu)
-  //    Кожен канал → монохромне зображення → Otsu поріг → 0 або 255
-  //    Потім збираємо назад в ImageData де R=bin(R), G=bin(G), B=bin(B)
-  const d=blurred.data;
-
-  // Витягуємо канали
-  const chR=new Uint8Array(w*h), chG=new Uint8Array(w*h), chB=new Uint8Array(w*h);
-  for(let i=0;i<w*h;i++){chR[i]=d[i*4];chG[i]=d[i*4+1];chB[i]=d[i*4+2];}
-
-  // Otsu для кожного каналу
-  function otsuCh(ch){
-    const hist=new Int32Array(256);for(const v of ch)hist[v]++;
-    const N=ch.length;let sum=0;for(let i=0;i<256;i++)sum+=i*hist[i];
-    let wb=0,sb=0,best=0,bestT=128;
-    for(let t=0;t<256;t++){wb+=hist[t];if(!wb)continue;const wf=N-wb;if(!wf)break;sb+=t*hist[t];const mb=sb/wb,mf=(sum-sb)/wf,v=wb*wf*(mb-mf)*(mb-mf);if(v>best){best=v;bestT=t;}}
-    return bestT;
-  }
-
-  const tR=otsuCh(chR), tG=otsuCh(chG), tB=otsuCh(chB);
-  Li('  Otsu поріг: R='+tR+' G='+tG+' B='+tB);
-
-  // Бінаризуємо: значення вище порогу → 255, нижче → 0
-  const out=new ImageData(w,h);
-  for(let i=0;i<w*h;i++){
-    out.data[i*4]  =chR[i]>tR?255:0;
-    out.data[i*4+1]=chG[i]>tG?255:0;
-    out.data[i*4+2]=chB[i]>tB?255:0;
-    out.data[i*4+3]=255;
-  }
-
-  Li('  → Бінаризація R/G/B по Otsu завершена');
-  return{idata:out,w,h};
+function findContourQuad(idata,w,h,log=false){
+  const gray=toGray(idata.data,w,h);
+  const edges=sobelEdges(gray,w,h);
+  const thr=otsuThreshold(edges);
+  const mask=new Uint8Array(w*h);for(let i=0;i<w*h;i++)mask[i]=edges[i]>thr?1:0;
+  const dilated=dilateMask(mask,w,h,3);
+  const pts=largestComponent(dilated,w,h);
+  if(!pts||pts.length<100){if(log)Li('  [sobel] component too small');return null;}
+  const hull=convexHull2D(pts);
+  const perim=hull.reduce((s,p,i)=>{const n=hull[(i+1)%hull.length];return s+Math.hypot(n.x-p.x,n.y-p.y);},0);
+  const approx=dpReduce([...hull,hull[0]],perim*0.04).slice(0,-1);
+  if(log)Li('  [sobel] pts='+pts.length+' hull='+hull.length+' approx='+approx.length);
+  const quad=sortQuadCorners(approx.length>=4?approx:hull);
+  if(!quad){if(log)Li('  [sobel] quad fail');return null;}
+  if(log)Li('  → tl('+quad.tl.x+','+quad.tl.y+') tr('+quad.tr.x+','+quad.tr.y+')');
+  return quad;
 }
 
 // ════════════════════════════════════════════════════════
-//  ДЕКОДЕР v5.1 — ЗАМОРОЖЕНИЙ, НЕ ЗМІНЮВАТИ
+//  HOMOGRAPHY + WARP  [v5 — unchanged]
 // ════════════════════════════════════════════════════════
-
-function toGray(idata,w,h){const d=idata.data,g=new Uint8Array(w*h);for(let i=0;i<w*h;i++)g[i]=(77*d[i*4]+150*d[i*4+1]+29*d[i*4+2])>>8;return g;}
-
-function sampleBG(gray,w,h,s=5){
-  const v=[];
-  for(let dy=0;dy<s;dy++)for(let dx=0;dx<s;dx++){v.push(gray[dy*w+dx],gray[dy*w+(w-1-dx)],gray[(h-1-dy)*w+dx],gray[(h-1-dy)*w+(w-1-dx)]);}
-  v.sort((a,b)=>a-b);return v[v.length>>1];
-}
-
-function makeMask(gray,w,h,bg,tol){const m=new Uint8Array(w*h);for(let i=0;i<w*h;i++)m[i]=Math.abs(gray[i]-bg)>tol?1:0;return m;}
-
-function erodeMask(mask,w,h){
-  const out=new Uint8Array(w*h);
-  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++)
-    if(mask[y*w+x]&&mask[(y-1)*w+x]&&mask[(y+1)*w+x]&&mask[y*w+x-1]&&mask[y*w+x+1])out[y*w+x]=1;
-  return out;
-}
-
-function findCorners(mask,w,h,slack=12){
-  let tlS=Infinity,trS=-Infinity,brS=-Infinity,blS=Infinity;
-  for(let y=0;y<h;y++)for(let x=0;x<w;x++){if(!mask[y*w+x])continue;const s=x+y,d=x-y;if(s<tlS)tlS=s;if(d>trS)trS=d;if(s>brS)brS=s;if(d<blS)blS=d;}
-  let tlX=0,tlY=0,tlN=0,trX=0,trY=0,trN=0,brX=0,brY=0,brN=0,blX=0,blY=0,blN=0;
-  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-    if(!mask[y*w+x])continue;const s=x+y,d=x-y;
-    if(s<=tlS+slack){tlX+=x;tlY+=y;tlN++;}if(d>=trS-slack){trX+=x;trY+=y;trN++;}
-    if(s>=brS-slack){brX+=x;brY+=y;brN++;}if(d<=blS+slack){blX+=x;blY+=y;blN++;}
-  }
-  const avg=(sx,sy,n,dx,dy)=>n?{x:Math.round(sx/n),y:Math.round(sy/n)}:{x:dx,y:dy};
-  return{tl:avg(tlX,tlY,tlN,0,0),tr:avg(trX,trY,trN,w-1,0),br:avg(brX,brY,brN,w-1,h-1),bl:avg(blX,blY,blN,0,h-1)};
-}
-
-function spread(c){const d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);return Math.max(d(c.tl,c.tr),d(c.tr,c.br),d(c.br,c.bl),d(c.bl,c.tl));}
-
-function gaussElim(A,b){
-  const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
-  for(let c=0;c<n;c++){let mr=c,mv=Math.abs(M[c][c]);for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>mv){mv=Math.abs(M[r][c]);mr=r;}[M[c],M[mr]]=[M[mr],M[c]];const pv=M[c][c];if(Math.abs(pv)<1e-12)return null;for(let r=c+1;r<n;r++){const f=M[r][c]/pv;for(let j=c;j<=n;j++)M[r][j]-=f*M[c][j];}}
-  const x=new Array(n).fill(0);for(let i=n-1;i>=0;i--){x[i]=M[i][n];for(let j=i+1;j<n;j++)x[i]-=M[i][j]*x[j];x[i]/=M[i][i];}return x;
-}
+function gaussElim(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);for(let c=0;c<n;c++){let mr=c,mv=Math.abs(M[c][c]);for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>mv){mv=Math.abs(M[r][c]);mr=r;}[M[c],M[mr]]=[M[mr],M[c]];const pv=M[c][c];if(Math.abs(pv)<1e-12)return null;for(let r=c+1;r<n;r++){const f=M[r][c]/pv;for(let j=c;j<=n;j++)M[r][j]-=f*M[c][j];}}const x=new Array(n).fill(0);for(let i=n-1;i>=0;i--){x[i]=M[i][n];for(let j=i+1;j<n;j++)x[i]-=M[i][j]*x[j];x[i]/=M[i][i];}return x;}
 function computeH(s4,d4){const rows=[],rhs=[];for(let i=0;i<4;i++){const sx=s4[i].x,sy=s4[i].y,dx=d4[i].x,dy=d4[i].y;rows.push([sx,sy,1,0,0,0,-sx*dx,-sy*dx]);rhs.push(dx);rows.push([0,0,0,sx,sy,1,-sx*dy,-sy*dy]);rhs.push(dy);}const h=gaussElim(rows,rhs);if(!h)return null;return[[h[0],h[1],h[2]],[h[3],h[4],h[5]],[h[6],h[7],1]];}
 function inv3(M){const[[a,b,c],[d,e,f],[g,h,k]]=M;const dt=a*(e*k-f*h)-b*(d*k-f*g)+c*(d*h-e*g);if(Math.abs(dt)<1e-12)return null;return[[(e*k-f*h)/dt,(c*h-b*k)/dt,(b*f-c*e)/dt],[(f*g-d*k)/dt,(a*k-c*g)/dt,(c*d-a*f)/dt],[(d*h-e*g)/dt,(b*g-a*h)/dt,(a*e-b*d)/dt]];}
 function applyH(H,x,y){const w=H[2][0]*x+H[2][1]*y+H[2][2];return{x:(H[0][0]*x+H[0][1]*y+H[0][2])/w,y:(H[1][0]*x+H[1][1]*y+H[1][2])/w};}
+function warpPerspective(idata,sw,sh,corners,S){const s4=[corners.tl,corners.tr,corners.br,corners.bl];const d4=[{x:0,y:0},{x:S-1,y:0},{x:S-1,y:S-1},{x:0,y:S-1}];const H=computeH(s4,d4);if(!H)return null;const Hi=inv3(H);if(!Hi)return null;const out=new ImageData(S,S),sd=idata.data,od=out.data;for(let dy=0;dy<S;dy++)for(let dx=0;dx<S;dx++){const p=applyH(Hi,dx,dy),x0=p.x|0,y0=p.y|0,fx=p.x-x0,fy=p.y-y0;const di=(dy*S+dx)*4;const get=(sx,sy,ch)=>(sx<0||sx>=sw||sy<0||sy>=sh)?128:sd[(sy*sw+sx)*4+ch];for(let ch=0;ch<3;ch++)od[di+ch]=Math.round(get(x0,y0,ch)*(1-fx)*(1-fy)+get(x0+1,y0,ch)*fx*(1-fy)+get(x0,y0+1,ch)*(1-fx)*fy+get(x0+1,y0+1,ch)*fx*fy);od[di+3]=255;}return out;}
 
-function warpPerspective(idata,sw,sh,corners,S){
-  const s4=[corners.tl,corners.tr,corners.br,corners.bl];
-  const d4=[{x:0,y:0},{x:S-1,y:0},{x:S-1,y:S-1},{x:0,y:S-1}];
-  const H=computeH(s4,d4);if(!H)return null;
-  const Hi=inv3(H);if(!Hi)return null;
-  const out=new ImageData(S,S),sd=idata.data,od=out.data;
-  for(let dy=0;dy<S;dy++)for(let dx=0;dx<S;dx++){
-    const p=applyH(Hi,dx,dy),x0=p.x|0,y0=p.y|0,fx=p.x-x0,fy=p.y-y0;
-    const di=(dy*S+dx)*4;
-    const get=(sx,sy,ch)=>(sx<0||sx>=sw||sy<0||sy>=sh)?128:sd[(sy*sw+sx)*4+ch];
-    for(let ch=0;ch<3;ch++)od[di+ch]=Math.round(get(x0,y0,ch)*(1-fx)*(1-fy)+get(x0+1,y0,ch)*fx*(1-fy)+get(x0,y0+1,ch)*(1-fx)*fy+get(x0+1,y0+1,ch)*fx*fy);
-    od[di+3]=255;
-  }
-  return out;
-}
+// ════════════════════════════════════════════════════════
+//  ZEBRA VERIFY + CORNER CHECK + SHRINK  [v5 — unchanged]
+// ════════════════════════════════════════════════════════
+function verifyZebra(wGray,S,minContrast){function scanLine(arr){const n=arr.length;let mn=255,mx=0;for(const v of arr){if(v<mn)mn=v;if(v>mx)mx=v;}if(mx-mn<minContrast)return null;const thr=(mn+mx)>>1,runs=[];let cur=arr[0]>thr?1:0,len=1;for(let i=1;i<n;i++){const b=arr[i]>thr?1:0;if(b===cur)len++;else{runs.push({v:cur,len});cur=b;len=1;}}runs.push({v:cur,len});if(runs.length<3)return null;const allLens=runs.map(r=>r.len).sort((a,b)=>a-b),med=allLens[allLens.length>>1];if(med<2)return null;const valid=runs.filter(r=>r.len>=med*0.4&&r.len<=med*2.4);if(valid.length<5)return null;let T=valid.length;if(T%2===0){if(valid[0].v===1||valid[T-1].v===1)T+=1;else return null;}if(T<5)return null;return{T,modSize:S/T};}
+const probeOffsets=[2,5,10,15,20,30];const votes=new Map();let total=0;for(const off of probeOffsets){if(off>=S/2)continue;for(const pos of[off,S-1-off]){const row=new Uint8Array(S);for(let x=0;x<S;x++)row[x]=wGray[pos*S+x];const rh=scanLine(row);if(rh)votes.set(rh.T,(votes.get(rh.T)||0)+1);total++;const col=new Uint8Array(S);for(let y=0;y<S;y++)col[y]=wGray[y*S+pos];const rv=scanLine(col);if(rv)votes.set(rv.T,(votes.get(rv.T)||0)+1);total++;}}
+if(!votes.size)return null;const sorted=[...votes.entries()].sort((a,b)=>b[1]-a[1]);const vStr=sorted.slice(0,5).map(([t,v])=>`T${t}:${v}`).join(' ');const[bestT,bestV]=sorted[0];return{T:bestT,modSize:S/bestT,confidence:bestV/total,voteStr:vStr};}
 
-// verifyZebra — ТОЧНО як v5.1
-function verifyZebra(wGray,S,minContrast){
-  function scanLine(arr){
-    const n=arr.length;let mn=255,mx=0;for(const v of arr){if(v<mn)mn=v;if(v>mx)mx=v;}
-    if(mx-mn<minContrast)return null;
-    const thr=(mn+mx)>>1,runs=[];let cur=arr[0]>thr?1:0,len=1;
-    for(let i=1;i<n;i++){const b=arr[i]>thr?1:0;if(b===cur)len++;else{runs.push({v:cur,len});cur=b;len=1;}}
-    runs.push({v:cur,len});
-    if(runs.length<3)return null;
-    const allLens=runs.map(r=>r.len).sort((a,b)=>a-b);
-    const med=allLens[allLens.length>>1];
-    if(med<2)return null;
-    const valid=runs.filter(r=>r.len>=med*0.4&&r.len<=med*2.4);
-    if(valid.length<5)return null;
-    let T=valid.length;
-    if(T%2===0){if(valid[0].v===1||valid[T-1].v===1)T+=1;else return null;}
-    if(T<5)return null;
-    return{T,modSize:S/T};
-  }
-  // ТОЧНО як v5.1: probeOffsets=[2,5,10,15,20,30]
-  const probeOffsets=[2,5,10,15,20,30];
-  const votes=new Map();let total=0;
-  for(const off of probeOffsets){
-    if(off>=S/2)continue;
-    for(const pos of[off,S-1-off]){
-      const row=new Uint8Array(S);for(let x=0;x<S;x++)row[x]=wGray[pos*S+x];
-      const rh=scanLine(row);if(rh)votes.set(rh.T,(votes.get(rh.T)||0)+1);total++;
-      const col=new Uint8Array(S);for(let y=0;y<S;y++)col[y]=wGray[y*S+pos];
-      const rv=scanLine(col);if(rv)votes.set(rv.T,(votes.get(rv.T)||0)+1);total++;
-    }
-  }
-  if(!votes.size)return null;
-  const sorted=[...votes.entries()].sort((a,b)=>b[1]-a[1]);
-  const vStr=sorted.slice(0,5).map(([t,v])=>`T${t}:${v}`).join(' ');
-  const[bestT,bestV]=sorted[0];
-  return{T:bestT,modSize:S/bestT,confidence:bestV/total,voteStr:vStr};
-}
+function checkZebraCorners(wGray,S,T,modSize){const pos=[{r:0,c:0},{r:0,c:T-1},{r:T-1,c:T-1},{r:T-1,c:0}];let dark=0;for(const{r,c}of pos){const cx=Math.round(c*modSize+modSize/2),cy=Math.round(r*modSize+modSize/2);const rad=Math.max(1,Math.floor(modSize*0.22));let sum=0,cnt=0;for(let dy=-rad;dy<=rad;dy++)for(let dx=-rad;dx<=rad;dx++){const px=cx+dx,py=cy+dy;if(px>=0&&px<S&&py>=0&&py<S){sum+=wGray[py*S+px];cnt++;}}if(cnt>0&&sum/cnt<110)dark++;}return dark;}
+function shrinkCorners(c,rw,rh,modOrig){const cx=(c.tl.x+c.tr.x+c.br.x+c.bl.x)/4,cy=(c.tl.y+c.tr.y+c.br.y+c.bl.y)/4;function mv(p){const dx=cx-p.x,dy=cy-p.y,d=Math.hypot(dx,dy);return d<1?{x:p.x,y:p.y}:{x:p.x+dx/d*modOrig,y:p.y+dy/d*modOrig};}const a=mv(c.tl),b=mv(c.tr),e=mv(c.br),f=mv(c.bl);return{tl:{x:Math.max(0,a.x),y:Math.max(0,a.y)},tr:{x:Math.min(rw-1,b.x),y:Math.max(0,b.y)},br:{x:Math.min(rw-1,e.x),y:Math.min(rh-1,e.y)},bl:{x:Math.max(0,f.x),y:Math.min(rh-1,f.y)}};}
 
-function sampleCircles(warped,S,T,modSize){
-  const d=warped.data,circleR=modSize*0.28,r2=circleR*circleR,cells=[];
-  for(let row=1;row<T-1;row++)for(let col=1;col<T-1;col++){
-    const cx=col*modSize+modSize/2,cy=row*modSize+modSize/2;
-    let sR=0,sG=0,sB=0,cnt=0;
-    const x0=Math.max(0,Math.floor(cx-circleR)),x1=Math.min(S-1,Math.ceil(cx+circleR));
-    const y0=Math.max(0,Math.floor(cy-circleR)),y1=Math.min(S-1,Math.ceil(cy+circleR));
-    for(let py=y0;py<=y1;py++)for(let px=x0;px<=x1;px++){
-      const dx=px-cx,dy=py-cy;if(dx*dx+dy*dy>r2)continue;
-      const idx=(py*S+px)*4;sR+=d[idx];sG+=d[idx+1];sB+=d[idx+2];cnt++;
-    }
-    cells.push(cnt?{r:sR/cnt,g:sG/cnt,b:sB/cnt,row,col}:{r:0,g:0,b:0,row,col});
-  }
-  return{cells,circleR};
-}
+// ════════════════════════════════════════════════════════
+//  SAMPLE CIRCLES  [v5 — unchanged]
+// ════════════════════════════════════════════════════════
+function sampleCircles(warped,S,T,modSize){const d=warped.data,circleR=modSize*0.28,r2=circleR*circleR,cells=[];for(let row=1;row<T-1;row++)for(let col=1;col<T-1;col++){const cx=col*modSize+modSize/2,cy=row*modSize+modSize/2;let sR=0,sG=0,sB=0,cnt=0;const x0=Math.max(0,Math.floor(cx-circleR)),x1=Math.min(S-1,Math.ceil(cx+circleR));const y0=Math.max(0,Math.floor(cy-circleR)),y1=Math.min(S-1,Math.ceil(cy+circleR));for(let py=y0;py<=y1;py++)for(let px=x0;px<=x1;px++){const dx=px-cx,dy=py-cy;if(dx*dx+dy*dy>r2)continue;const idx=(py*S+px)*4;sR+=d[idx];sG+=d[idx+1];sB+=d[idx+2];cnt++;}cells.push(cnt?{r:sR/cnt,g:sG/cnt,b:sB/cnt,row,col}:{r:0,g:0,b:0,row,col});}return{cells,circleR};}
 
-// TAINA decoder — ТОЧНО як v5.1
+// ════════════════════════════════════════════════════════
+//  TAINA DECODER  [v5 — unchanged]
+// ════════════════════════════════════════════════════════
 const RGB_MAIN={r:[255,0,0],g:[0,255,0],b:[0,0,255]};
 const RGB_GAL={r:[220,50,60],g:[65,195,65],b:[60,70,215]};
 const REFBITS=[[0,0,0],[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,0,1],[0,1,1],[1,1,1]];
@@ -398,246 +241,339 @@ function agree(g,chk,n){let ok=0;for(let z=0;z<n*n;z++)ok+=((chk[z]?1:0)===g[z])
 function decodeVoted(g,n,m,off,conf){const bc=baseCells(m,n),by=[];for(let i=off||0;i+7<bc.length;i+=8){let v=0;for(let b=0;b<8;b++){const[x,y]=bc[i+b],cells=mirrors(m,n,x,y);let bit;if(conf){let w1=0,w0=0;for(const[X,Y]of cells){const cv=conf[Y*n+X];if(cv<0.15)continue;if(g[Y*n+X])w1+=cv;else w0+=cv;}bit=(w1===0&&w0===0)?g[y*n+x]?1:0:w1>w0?1:0;}else{let ones=0;for(const[X,Y]of cells)ones+=g[Y*n+X]?1:0;const cnt=cells.length;bit=ones*2>cnt?1:ones*2<cnt?0:g[y*n+x]?1:0;}v=(v<<1)|bit;}by.push(v);}return{text:bytesToText(by),bytes:by};}
 function refsFor(S){const mix=(r,g,b)=>[Math.min(255,(r?S.r[0]:0)+(g?S.g[0]:0)+(b?S.b[0]:0)),Math.min(255,(r?S.r[1]:0)+(g?S.g[1]:0)+(b?S.b[1]:0)),Math.min(255,(r?S.r[2]:0)+(g?S.g[2]:0)+(b?S.b[2]:0))];return REFBITS.map(c=>({bits:c,col:mix(c[0],c[1],c[2])}));}
 function classifyCells(cells,n){const pals=[['насичена',RGB_MAIN],['галерейна',RGB_GAL]];let best=null;for(const[name,S]of pals){const refs=refsFor(S);let err=0;const cr=new Uint8Array(n*n),cg=new Uint8Array(n*n),cb=new Uint8Array(n*n);for(let i=0;i<n*n;i++){const[R,G,B]=[cells[i].r,cells[i].g,cells[i].b];let bi=0,bd=1e9;for(let k=0;k<refs.length;k++){const q=refs[k].col,dr=R-q[0],dg=G-q[1],db=B-q[2],dd=dr*dr+dg*dg+db*db;if(dd<bd){bd=dd;bi=k;}}err+=bd;const t=refs[bi].bits;cr[i]=t[0];cg[i]=t[1];cb[i]=t[2];}if(!best||err<best.err)best={name,err,cr,cg,cb};}return best;}
+function decodeCircles(circles,T,log=true){const cells=circles.cells,n=T-2;if(n<7||n%2===0){if(log)Lw('n='+n+' — замалий або парний');return null;}const lumas=cells.map(c=>(c.r+c.g+c.b)/3),lumaMin=Math.min(...lumas),lumaMax=Math.max(...lumas),autoThr=(lumaMin+lumaMax)/2;const gl=new Uint8Array(n*n),confM=new Float32Array(n*n);cells.forEach((c,i)=>{const L=(c.r+c.g+c.b)/3;gl[i]=L>autoThr?1:0;confM[i]=Math.min(1,Math.abs(L-autoThr)/(autoThr/2+1));});const sats=cells.map(c=>Math.max(c.r,c.g,c.b)-Math.min(c.r,c.g,c.b));const medSat=[...sats].sort((a,b)=>a-b)[sats.length>>1];const coloredCnt=sats.filter(s=>s>60).length;const isColored=medSat>25||coloredCnt>=Math.max(3,n*0.15);if(log)Li('  n='+n+' thr='+autoThr.toFixed(0)+' '+(isColored?'КОЛІР':'МОНО'));const modes=['oct','quad','half'];if(!isColored){if(log)Lh('ДЕКОД МОНО');let best=null;for(const m of modes){const v=decodeVoted(gl,n,m,0,confM);if(v.text!==null){const a=agree(gl,fillChannel(v.text,n,m),n);if(log)Lok('['+m+'] "'+v.text+'" agree='+a.toFixed(3));if(!best||a>best.a)best={v,a,m};}else{if(log)Li('  ['+m+'] null');}}return best?{type:'МОНО·'+best.m,text:best.v.text,score:best.a}:{type:'МОНО',text:null,score:0};}else{if(log)Lh('ДЕКОД КОЛІР');const cls=classifyCells(cells,n);if(log)Li('  палітра: '+cls.name);const cR=new Float32Array(n*n),cG=new Float32Array(n*n),cB=new Float32Array(n*n);cells.forEach((c,i)=>{cR[i]=Math.min(1,Math.abs(c.r-128)/90);cG[i]=Math.min(1,Math.abs(c.g-128)/90);cB[i]=Math.min(1,Math.abs(c.b-128)/90);});let best=null;for(const m of modes){const rMark=markCell(cls.cr,n,m);let vr=decodeVoted(cls.cr,n,m,rMark?1:0,cR);if(rMark&&vr.text===null)vr=decodeVoted(cls.cr,n,m,0,cR);const vg=decodeVoted(cls.cg,n,m,0,cG),vb=decodeVoted(cls.cb,n,m,0,cB);const nn=[vr.text,vg.text,vb.text].filter(t=>t!==null);if(log)Li('  ['+m+'] R:'+(vr.text!=null?'"'+vr.text+'"':'null')+' G:'+(vg.text!=null?'"'+vg.text+'"':'null')+' B:'+(vb.text!=null?'"'+vb.text+'"':'null'));if(!nn.length)continue;const sc=nn.length*1000+nn.reduce((a,t)=>a+t.length,0);if(!best||sc>best.sc)best={vr,vg,vb,nn,sc,m,rMark};}if(!best)return{type:'КОЛІР·'+cls.name,text:null,score:0};const parts=[best.vr.text,best.vg.text,best.vb.text].filter(t=>t!==null);const text=best.rMark?(parts.every(t=>t===parts[0])?parts[0]:parts.join('')):parts.join(' · ');if(log)Lok('['+best.m+'] "'+text+'"');return{type:'КОЛІР·'+best.m,text,score:best.sc/1000};}}
 
-function decodeCircles(circles,T){
-  const cells=circles.cells,n=T-2;
-  if(n<7||n%2===0){Lw('n='+n+' — замалий або парний');return null;}
-  const lumas=cells.map(c=>(c.r+c.g+c.b)/3);
-  const lumaMin=Math.min(...lumas),lumaMax=Math.max(...lumas),autoThr=(lumaMin+lumaMax)/2;
-  const gl=new Uint8Array(n*n),confM=new Float32Array(n*n);
-  cells.forEach((c,i)=>{const L=(c.r+c.g+c.b)/3;gl[i]=L>autoThr?1:0;confM[i]=Math.min(1,Math.abs(L-autoThr)/(autoThr/2+1));});
-  const sats=cells.map(c=>Math.max(c.r,c.g,c.b)-Math.min(c.r,c.g,c.b));
-  const medSat=[...sats].sort((a,b)=>a-b)[sats.length>>1];
-  const coloredCnt=sats.filter(s=>s>60).length;
-  const isColored=medSat>25||coloredCnt>=Math.max(3,n*0.15);
-  Li('  n='+n+'  поріг='+autoThr.toFixed(0)+'  '+(isColored?'КОЛІР':'МОНО'));
-  const modes=['oct','quad','half'];
-  if(!isColored){
-    Lh('7. ДЕКОД МОНО');let best=null;
-    for(const m of modes){const v=decodeVoted(gl,n,m,0,confM);if(v.text!==null){const a=agree(gl,fillChannel(v.text,n,m),n);Lok('['+m+'] "'+v.text+'"  agree='+a.toFixed(3));if(!best||a>best.a)best={v,a,m};}else Li('  ['+m+'] null');}
-    return best?{type:'МОНО·'+best.m,text:best.v.text}:{type:'МОНО',text:null};
+// ════════════════════════════════════════════════════════
+//  PASS 1 — ROI DETECTION via opencv.js
+//  3 стратегії: A=темний код/світло, B=світла зона/темно, C=Canny
+//  Для кожної: dilate → findContours → approxPolyDP(4 кути) → фільтр
+// ════════════════════════════════════════════════════════
+
+function findBestQuad_cv(binMat, imgW, imgH) {
+  const imgArea = imgW * imgH;
+  const contours = new cv.MatVector();
+  const hier = new cv.Mat();
+  let best = null;
+  try {
+    cv.findContours(binMat, contours, hier, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    for (let i = 0; i < contours.size(); i++) {
+      const cnt = contours.get(i);
+      let approx = null;
+      try {
+        const area = cv.contourArea(cnt);
+        // Фільтр площі: 3%–93% кадру
+        if (area < imgArea * 0.03 || area > imgArea * 0.93) continue;
+        const perim = cv.arcLength(cnt, true);
+        if (perim < 20) continue;
+        approx = new cv.Mat();
+        // ε = 4% периметру — достатньо, щоб зрізати зубці зебри до 4 кутів
+        cv.approxPolyDP(cnt, approx, perim * 0.04, true);
+        if (approx.rows !== 4) continue;
+        if (!cv.isContourConvex(approx)) continue;
+        // Координати 4 кутів
+        const d = approx.data32S;
+        const pts = [{x:d[0],y:d[1]},{x:d[2],y:d[3]},{x:d[4],y:d[5]},{x:d[6],y:d[7]}];
+        const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+        const bw = Math.max(...xs)-Math.min(...xs);
+        const bh = Math.max(...ys)-Math.min(...ys);
+        if (bh < 20) continue;
+        // Пропорції: від 0.55 до 1.82 (±30% від квадрата з запасом на перспективу)
+        const asp = bw / bh;
+        if (asp < 0.55 || asp > 1.82) continue;
+        // Оцінка: площа × квадратичність²
+        const sq = Math.min(asp, 1/asp);
+        const score = area * sq * sq;
+        if (!best || score > best.score) {
+          const quad = sortQuadCorners(pts);
+          if (quad) best = {quad, score, area};
+        }
+      } finally {
+        cnt.delete();
+        if (approx) approx.delete();
+      }
+    }
+  } catch(e) { /* ігнор помилок контурів */ }
+  finally { contours.delete(); hier.delete(); }
+  return best;
+}
+
+function findROI_opencv(idata, w, h, log=false) {
+  if (!cvReady) return null;
+  let src=null, gray=null, blr=null;
+  try {
+    src = cv.matFromImageData(idata);
+    gray = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    blr = new cv.Mat();
+    cv.GaussianBlur(gray, blr, new cv.Size(7,7), 0);
+
+    // Розмір ядра dilation: ~1/55 від меншої сторони, але не менше 7px
+    // Потрібно зімкнути зубці зебри (~1 модуль) в суцільний контур
+    const dk = Math.max(7, Math.floor(Math.min(w,h) / 55));
+    if(log) Li('  [cv] dil='+dk+'px');
+
+    let kernel=null, best=null;
+    try {
+      kernel = cv.Mat.ones(dk, dk, cv.CV_8U);
+
+      // ── Стратегія A: темний код на світлому тлі ──
+      {
+        const t=new cv.Mat(), d=new cv.Mat();
+        try {
+          cv.threshold(blr, t, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
+          cv.dilate(t, d, kernel);
+          const r = findBestQuad_cv(d, w, h);
+          if (r && (!best || r.score > best.score)) {
+            best = r;
+            if(log) Li('  A → score='+r.score.toFixed(0)+' area='+r.area.toFixed(0));
+          }
+        } finally { t.delete(); d.delete(); }
+      }
+
+      // ── Стратегія B: світла зона на темному тлі ──
+      {
+        const t=new cv.Mat(), d=new cv.Mat();
+        try {
+          cv.threshold(blr, t, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+          cv.dilate(t, d, kernel);
+          const r = findBestQuad_cv(d, w, h);
+          if (r && (!best || r.score > best.score)) {
+            best = r;
+            if(log) Li('  B → score='+r.score.toFixed(0)+' area='+r.area.toFixed(0));
+          }
+        } finally { t.delete(); d.delete(); }
+      }
+
+      // ── Стратегія C: Canny — будь-який контраст на межі ──
+      {
+        const e=new cv.Mat(), d=new cv.Mat();
+        try {
+          cv.Canny(blr, e, 40, 120);
+          cv.dilate(e, d, kernel);
+          const r = findBestQuad_cv(d, w, h);
+          if (r && (!best || r.score > best.score)) {
+            best = r;
+            if(log) Li('  C → score='+r.score.toFixed(0)+' area='+r.area.toFixed(0));
+          }
+        } finally { e.delete(); d.delete(); }
+      }
+
+    } finally { if(kernel) kernel.delete(); }
+
+    if (best && log) {
+      const q = best.quad;
+      Lok('  cv ROI → tl('+q.tl.x+','+q.tl.y+') tr('+q.tr.x+','+q.tr.y+') br('+q.br.x+','+q.br.y+') bl('+q.bl.x+','+q.bl.y+')');
+    }
+    return best ? best.quad : null;
+
+  } catch(e) {
+    if(log) Le('cv ROI error: '+e.message);
+    return null;
+  } finally {
+    if(src) src.delete();
+    if(gray) gray.delete();
+    if(blr) blr.delete();
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  PIPELINE v6 — TWO-PASS
+//  Pass 1: findROI_opencv → quad (fallback: findContourQuad)
+//  Pass 2: warpPerspective → verifyZebra → shrink → decode
+// ════════════════════════════════════════════════════════
+const S_WARP=600;
+function spreadQuad(c){const d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);return Math.max(d(c.tl,c.tr),d(c.tr,c.br),d(c.br,c.bl),d(c.bl,c.tl));}
+
+function fullScan(idata, w, h, log=true) {
+  // ── PASS 1: ROI ──
+  if(log) Lh('PASS 1 · ROI');
+  let quad = null, method = 'none';
+
+  if (cvReady) {
+    quad = findROI_opencv(idata, w, h, log);
+    if (quad) method = 'opencv';
   } else {
-    Lh('7. ДЕКОД КОЛІР');const cls=classifyCells(cells,n);Li('  палітра: '+cls.name);
-    const cR=new Float32Array(n*n),cG=new Float32Array(n*n),cB=new Float32Array(n*n);
-    cells.forEach((c,i)=>{cR[i]=Math.min(1,Math.abs(c.r-128)/90);cG[i]=Math.min(1,Math.abs(c.g-128)/90);cB[i]=Math.min(1,Math.abs(c.b-128)/90);});
-    let best=null;
-    for(const m of modes){
-      const rMark=markCell(cls.cr,n,m);
-      let vr=decodeVoted(cls.cr,n,m,rMark?1:0,cR);if(rMark&&vr.text===null)vr=decodeVoted(cls.cr,n,m,0,cR);
-      const vg=decodeVoted(cls.cg,n,m,0,cG),vb=decodeVoted(cls.cb,n,m,0,cB);
-      const nn=[vr.text,vg.text,vb.text].filter(t=>t!==null);
-      Li('  ['+m+'] R:'+(vr.text!=null?'"'+vr.text+'"':'null')+'  G:'+(vg.text!=null?'"'+vg.text+'"':'null')+'  B:'+(vb.text!=null?'"'+vb.text+'"':'null'));
-      if(!nn.length)continue;
-      const sc=nn.length*1000+nn.reduce((a,t)=>a+t.length,0);
-      if(!best||sc>best.sc)best={vr,vg,vb,nn,sc,m,rMark};
-    }
-    if(!best)return{type:'КОЛІР·'+cls.name,text:null};
-    const parts=[best.vr.text,best.vg.text,best.vb.text].filter(t=>t!==null);
-    const text=best.rMark?(parts.every(t=>t===parts[0])?parts[0]:parts.join('')):parts.join(' · ');
-    Lok('['+best.m+'] "'+text+'"');return{type:'КОЛІР·'+best.m,text};
+    if(log) Li('  OpenCV не готовий — одразу fallback');
   }
+
+  if (!quad) {
+    if(log) Li('  → fallback: Sobel/Otsu');
+    quad = findContourQuad(idata, w, h, log);
+    if (quad) method = 'sobel';
+  }
+
+  if (!quad) { if(log) Le('ROI: не знайдено'); return null; }
+
+  const sp = spreadQuad(quad);
+  if (sp < 60) { if(log) Le('ROI: занадто малий ('+Math.round(sp)+'px)'); return null; }
+  if(log) Lok('ROI ['+method+']: spread='+Math.round(sp)+'px');
+
+  // ── PASS 2: Warp + Zebra + Decode ──
+  if(log) Lh('PASS 2 · DECODE');
+  let c=quad, warped, wGray, zebra, shrinkApplied=0;
+
+  for(let attempt=0; attempt<=3; attempt++){
+    warped = warpPerspective(idata, w, h, c, S_WARP);
+    if(!warped){if(log)Le('warp fail');return null;}
+    wGray = toGray(warped.data, S_WARP, S_WARP);
+    zebra = verifyZebra(wGray, S_WARP, 45);
+    if(!zebra){if(log)Le('zebra fail');return null;}
+    const dark = checkZebraCorners(wGray, S_WARP, zebra.T, zebra.modSize);
+    if(log) Li('  [iter '+attempt+'] T='+zebra.T+' кути='+dark+'/4 conf='+zebra.confidence.toFixed(2));
+    if(dark>=3) break;
+    const modOrig = sp/zebra.T;
+    c = shrinkCorners(c, w, h, modOrig);
+    shrinkApplied++;
+  }
+
+  const circles = sampleCircles(warped, S_WARP, zebra.T, zebra.modSize);
+  const decoded = decodeCircles(circles, zebra.T, log);
+
+  return{
+    roi:{x0:0,y0:0,w,h,method},
+    corners:c, spread:sp, warped, zebra, circles, decoded, shrinkApplied,
+    confidence:(decoded&&decoded.text!==null)?zebra.confidence*(decoded.score||0.5):zebra.confidence*0.1
+  };
 }
 
-// ── v5.1 PIPELINE (маска + кути — точно як оригінал) ──
-function findFrame(idata,w,h){
-  const gray=toGray(idata,w,h);
-  const bg=sampleBG(gray,w,h,5);
-  Li('BG luma: '+bg);
-  const tols=[20,30,42,55,70,90];
-  let bestCorners=null,bestSpread=0,bestTol=0;
-  for(const tol of tols){
-    const rm=makeMask(gray,w,h,bg,tol);
-    const em=erodeMask(rm,w,h);
-    const fgN=em.reduce((s,v)=>s+v,0);
-    if(fgN<50){Li('  tol='+tol+' FG='+fgN+' — пропуск');continue;}
-    const c=findCorners(em,w,h,15);
-    const sp=spread(c);
-    Li('  tol='+tol+'  FG='+fgN+'  spread='+Math.round(sp)+'px');
-    if(sp>bestSpread){bestSpread=sp;bestCorners=c;bestTol=tol;}
-  }
-  Li('Обрано tol='+bestTol+'  spread='+Math.round(bestSpread)+'px');
+// ════════════════════════════════════════════════════════
+//  DRAWING  [v5 — unchanged]
+// ════════════════════════════════════════════════════════
+const cnvMain=document.getElementById('cnv-main');
 
-  // variance-scan fallback — точно як v5.1
-  if(!bestCorners||bestSpread<30){
-    Li('Маска не спрацювала — variance-scan');
-    const topRows=[],leftCols=[];
-    for(let y=0;y<h;y++){let sum=0,sum2=0;for(let x=0;x<w;x++){const v=gray[y*w+x];sum+=v;sum2+=v*v;}const avg=sum/w,std=Math.sqrt(sum2/w-avg*avg);if(std>50)topRows.push(y);}
-    for(let x=0;x<w;x++){let sum=0,sum2=0;for(let y=0;y<h;y++){const v=gray[y*w+x];sum+=v;sum2+=v*v;}const avg=sum/h,std=Math.sqrt(sum2/h-avg*avg);if(std>50)leftCols.push(x);}
-    topRows.sort((a,b)=>a-b);leftCols.sort((a,b)=>a-b);
-    if(topRows.length>0&&leftCols.length>0){
-      const vc={tl:{x:leftCols[0],y:topRows[0]},tr:{x:leftCols[leftCols.length-1],y:topRows[0]},br:{x:leftCols[leftCols.length-1],y:topRows[topRows.length-1]},bl:{x:leftCols[0],y:topRows[topRows.length-1]}};
-      const vsp=spread(vc);
-      Li('Variance: spread='+Math.round(vsp));
-      if(vsp>bestSpread){bestCorners=vc;bestSpread=vsp;}
-    }
-  }
-  return{corners:bestCorners,spread:bestSpread};
+function drawResult(result){
+  if(!result)return;
+  const{warped,zebra}=result;const S=S_WARP,T=zebra.T,modSize=zebra.modSize;
+  cnvMain.width=S;cnvMain.height=S;
+  const ctx=cnvMain.getContext('2d');ctx.putImageData(warped,0,0);
+  ctx.strokeStyle='rgba(40,120,200,0.18)';ctx.lineWidth=0.5;
+  for(let i=0;i<=T;i++){const p=i*modSize;ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,S);ctx.stroke();ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(S,p);ctx.stroke();}
+  for(let i=0;i<T;i++){ctx.fillStyle=(i%2===0)?'rgba(255,80,80,0.18)':'rgba(80,180,255,0.10)';ctx.fillRect(i*modSize,0,modSize,modSize);ctx.fillRect(i*modSize,S-modSize,modSize,modSize);if(i>0&&i<T-1){ctx.fillRect(0,i*modSize,modSize,modSize);ctx.fillRect(S-modSize,i*modSize,modSize,modSize);}}
+  ctx.fillStyle='rgba(255,220,50,0.55)';[[0,0],[S-modSize,0],[S-modSize,S-modSize],[0,S-modSize]].forEach(([x,y])=>ctx.fillRect(x,y,modSize,modSize));
+  ctx.strokeStyle='rgba(80,235,120,0.55)';ctx.lineWidth=1.5;ctx.strokeRect(modSize,modSize,(T-2)*modSize,(T-2)*modSize);
+  const cr=modSize*0.28;ctx.strokeStyle='rgba(255,255,255,0.7)';ctx.lineWidth=Math.max(0.8,modSize*0.06);
+  for(let row=1;row<T-1;row++)for(let col=1;col<T-1;col++){ctx.beginPath();ctx.arc(col*modSize+modSize/2,row*modSize+modSize/2,cr,0,Math.PI*2);ctx.stroke();}
 }
 
-// ── DRAW ──
-const mainCnv=document.getElementById('cnv');
-
-function drawResult(warped,S,zebra,idata,w,h,corners){
-  if(warped&&zebra){
-    mainCnv.width=S;mainCnv.height=S;
-    const ctx=mainCnv.getContext('2d');
-    ctx.putImageData(warped,0,0);
-    const{T,modSize}=zebra;
-    ctx.strokeStyle='rgba(40,120,200,0.18)';ctx.lineWidth=0.5;
-    for(let i=0;i<=T;i++){const p=i*modSize;ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,S);ctx.stroke();ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(S,p);ctx.stroke();}
-    for(let i=0;i<T;i++){
-      ctx.fillStyle=(i%2===0)?'rgba(255,80,80,0.18)':'rgba(80,180,255,0.10)';
-      ctx.fillRect(i*modSize,0,modSize,modSize);ctx.fillRect(i*modSize,S-modSize,modSize,modSize);
-      if(i>0&&i<T-1){ctx.fillRect(0,i*modSize,modSize,modSize);ctx.fillRect(S-modSize,i*modSize,modSize,modSize);}
-    }
-    ctx.fillStyle='rgba(255,220,50,0.45)';
-    [[0,0],[S-modSize,0],[S-modSize,S-modSize],[0,S-modSize]].forEach(([x,y])=>ctx.fillRect(x,y,modSize,modSize));
-    ctx.strokeStyle='rgba(80,235,120,0.55)';ctx.lineWidth=1.5;
-    ctx.strokeRect(modSize,modSize,(T-2)*modSize,(T-2)*modSize);
-    const cr=modSize*0.28;ctx.strokeStyle='rgba(255,255,255,0.7)';ctx.lineWidth=Math.max(0.8,modSize*0.06);
-    for(let row=1;row<T-1;row++)for(let col=1;col<T-1;col++){ctx.beginPath();ctx.arc(col*modSize+modSize/2,row*modSize+modSize/2,cr,0,Math.PI*2);ctx.stroke();}
-  } else if(idata){
-    mainCnv.width=w;mainCnv.height=h;
-    const ctx=mainCnv.getContext('2d');ctx.putImageData(idata,0,0);
-    if(corners){
-      ctx.strokeStyle='#eb5555';ctx.lineWidth=2;
-      const c=corners;ctx.beginPath();ctx.moveTo(c.tl.x,c.tl.y);ctx.lineTo(c.tr.x,c.tr.y);ctx.lineTo(c.br.x,c.br.y);ctx.lineTo(c.bl.x,c.bl.y);ctx.closePath();ctx.stroke();
-      ctx.fillStyle='#eb5555';[c.tl,c.tr,c.br,c.bl].forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();});
-    }
-  }
-}
-
-function buildRGBPanel(warped,S,T,modSize,circles){
+function buildRGBPanel(result){
+  if(!result)return;
+  const{warped,zebra,circles}=result;const S=S_WARP,T=zebra.T,modSize=zebra.modSize;
   const grid=document.getElementById('rgb-grid');grid.innerHTML='';
   const labels=['Warped','R','G','B'],colors=[[255,50,50],[50,220,50],[50,100,255]];
   const canvases=labels.map(lbl=>{const tile=document.createElement('div');tile.className='rgb-tile';const c=document.createElement('canvas');c.width=S;c.height=S;const l=document.createElement('div');l.className='rgb-lbl';l.textContent=lbl;tile.appendChild(c);tile.appendChild(l);grid.appendChild(tile);return c;});
   canvases[0].getContext('2d').putImageData(warped,0,0);
-  for(let ci=0;ci<3;ci++){
-    const c=canvases[ci+1],ctx=c.getContext('2d');
-    ctx.fillStyle='#080808';ctx.fillRect(0,0,S,S);
-    ctx.strokeStyle='rgba(40,40,60,0.5)';ctx.lineWidth=0.5;
-    for(let i=0;i<=T;i++){const p=i*modSize;ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,S);ctx.stroke();ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(S,p);ctx.stroke();}
-    const cr=modSize*0.28;const[cr_,cg_,cb_]=colors[ci];
-    circles.cells.forEach(cell=>{
-      const cx=cell.col*modSize+modSize/2,cy=cell.row*modSize+modSize/2;
-      const val=ci===0?cell.r:ci===1?cell.g:cell.b;
-      ctx.fillStyle='rgba('+cr_+','+cg_+','+cb_+','+(val/255).toFixed(2)+')';
-      ctx.beginPath();ctx.arc(cx,cy,cr,0,Math.PI*2);ctx.fill();
-      if(modSize>20){ctx.fillStyle='rgba(255,255,255,0.55)';ctx.font=Math.max(6,modSize*0.22)+'px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(Math.round(val),cx,cy);}
-    });
-  }
+  for(let ci=0;ci<3;ci++){const c=canvases[ci+1],ctx=c.getContext('2d');ctx.fillStyle='#080808';ctx.fillRect(0,0,S,S);ctx.strokeStyle='rgba(40,40,60,0.5)';ctx.lineWidth=0.5;for(let i=0;i<=T;i++){const p=i*modSize;ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,S);ctx.stroke();ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(S,p);ctx.stroke();}const[cr_,cg_,cb_]=colors[ci];circles.cells.forEach(cell=>{const cx=cell.col*modSize+modSize/2,cy=cell.row*modSize+modSize/2;const val=ci===0?cell.r:ci===1?cell.g:cell.b;ctx.fillStyle='rgba('+cr_+','+cg_+','+cb_+','+(val/255).toFixed(2)+')';ctx.beginPath();ctx.arc(cx,cy,modSize*0.28,0,Math.PI*2);ctx.fill();if(modSize>20){ctx.fillStyle='rgba(255,255,255,0.55)';ctx.font=Math.max(6,modSize*0.22)+'px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(Math.round(val),cx,cy);}});}
 }
 
-// ── MAIN RUN ──
-function run(idata,w,h){
-  // Декодер v5.1 — незмінний
-  Lh('1. ПОШУК РАМКИ');
-  const{corners,spread:sp}=findFrame(idata,w,h);
-  if(!corners||sp<20){
-    Le('Рамку не знайдено');
-    drawResult(null,null,null,idata,w,h,corners);
-    setSt('✗ рамку не знайдено',false);
-    return;
-  }
-  const exp=6;
-  const c={tl:{x:corners.tl.x-exp,y:corners.tl.y-exp},tr:{x:corners.tr.x+exp,y:corners.tr.y-exp},br:{x:corners.br.x+exp,y:corners.br.y+exp},bl:{x:corners.bl.x-exp,y:corners.bl.y+exp}};
-  Li('TL('+c.tl.x+','+c.tl.y+') TR('+c.tr.x+','+c.tr.y+') BR('+c.br.x+','+c.br.y+') BL('+c.bl.x+','+c.bl.y+')');
-
-  Lh('2. WARP');
-  const S=600; // ТОЧНО як v5.1
-  const warped=warpPerspective(idata,w,h,c,S);
-  if(!warped){Le('Гомографія не вдалася');setSt('✗ warp failed',false);return;}
-  Lok('Warp → '+S+'×'+S);
-
-  Lh('3. ЗЕБРА');
-  const wGray=toGray(warped,S,S);
-  const zebra=verifyZebra(wGray,S,50); // minContrast=50, ТОЧНО як v5.1
-  if(zebra)Li('  голоси: '+zebra.voteStr);
-  if(!zebra){Le('Зебру не знайдено');drawResult(warped,S,null,idata,w,h,c);setSt('✗ зебру не знайдено',false);return;}
-  Lok('T='+zebra.T+'  mod='+zebra.modSize.toFixed(1)+'px  conf='+(zebra.confidence*100).toFixed(0)+'%');
-
-  Lh('4. КРУЖЕЧКИ');
-  const circles=sampleCircles(warped,S,zebra.T,zebra.modSize);
-  const lumas=circles.cells.map(c=>(c.r+c.g+c.b)/3).sort((a,b)=>a-b);
-  Li('  '+circles.cells.length+' шт  r='+circles.circleR.toFixed(1)+'px');
-  Li('  яскравість: min='+lumas[0].toFixed(0)+' med='+lumas[lumas.length>>1].toFixed(0)+' max='+lumas[lumas.length-1].toFixed(0));
-
-  Lh('5. ДЕКОДУВАННЯ');
-  const decoded=decodeCircles(circles,zebra.T);
-
-  drawResult(warped,S,zebra,idata,w,h,c);
-  buildRGBPanel(warped,S,zebra.T,zebra.modSize,circles);
-
-  if(decoded&&decoded.text!==null){
-    Lok('РЕЗУЛЬТАТ: "'+decoded.text+'" ['+decoded.type+']');
-    setSt('✓ "'+decoded.text+'"',true);
-  } else {
-    Lw('Декод не вдався ['+(decoded?decoded.type:'—')+']');
-    setSt('⚠ зебра OK, декод null',null);
-  }
+function updateDiag(result,frameIdx,totalFrames){
+  const el=document.getElementById('diag-content');if(!result){el.innerHTML='';return;}
+  let html='';
+  if(frameIdx!==undefined)html+=`<div><span class="dk">кадр</span> <span>${frameIdx}/${totalFrames}</span></div>`;
+  const z=result.zebra,d=result.decoded;
+  html+=`<div><span class="dk">ROI</span> <span>${result.roi.method}</span></div>`;
+  html+=`<div><span class="dk">T</span> <span>${z.T}</span></div>`;
+  html+=`<div><span class="dk">modSize</span> <span>${z.modSize.toFixed(1)}px</span></div>`;
+  html+=`<div><span class="dk">zebra conf</span> <span>${(z.confidence*100).toFixed(0)}%</span></div>`;
+  html+=`<div><span class="dk">votes</span> <span style="font-size:10px">${z.voteStr}</span></div>`;
+  if(d)html+=`<div><span class="dk">type</span> <span>${d.type}</span></div>`;
+  if(result.shrinkApplied)html+=`<div><span class="dk">shrink</span> <span>${result.shrinkApplied}× ✓</span></div>`;
+  el.innerHTML=html;
 }
 
-// ── ENTRY POINTS ──
-function processImage(img,orient){
-  clrLog();
-  document.getElementById('vidWrap').style.display='none';
-  mainCnv.style.display='block';
-  setSt('обробка…',null);
-  const{idata,w,h}=preprocess(img,orient,900);
-  run(idata,w,h);
-}
-
-// Файл
-document.getElementById('fin').addEventListener('change',e=>{
-  const f=e.target.files[0];if(!f)return;
-  Li('Файл: '+f.name);
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    const orient=getExifOrientation(ev.target.result);
-    const img=new Image();
-    img.onload=()=>setTimeout(()=>processImage(img,orient),30);
-    img.src=URL.createObjectURL(f);
-  };
-  reader.readAsArrayBuffer(f);
-  e.target.value='';
-});
-
-// Камера
-let stream=null;
+// ════════════════════════════════════════════════════════
+//  CAMERA AUTO-CYCLE  [v5 — unchanged]
+// ════════════════════════════════════════════════════════
+let cameraStream=null,cameraTimer=null,cameraRunning=false;
 const vid=document.getElementById('vid');
-const vidWrap=document.getElementById('vidWrap');
+const scanRing=document.getElementById('scan-ring');
+const frameCounter=document.getElementById('frame-counter');
+const progressFill=document.getElementById('progress-fill');
+const camDot=document.getElementById('cam-dot');
+const camLabel=document.getElementById('cam-label');
+const TOTAL_FRAMES=5,FRAME_INTERVAL=1000;
 
-document.getElementById('camBtn').addEventListener('click',async()=>{
-  try{
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:960}}});
-    vid.srcObject=stream;await vid.play();
-    vidWrap.style.display='flex';mainCnv.style.display='none';
-    document.getElementById('camBtn').style.display='none';
-    document.getElementById('capBtn').style.display='inline';
-    document.getElementById('stopBtn').style.display='inline';
-    setSt('◎ камера — натисни Знімок',null);
-  }catch(err){Le('Камера: '+err.message);setSt('✗ '+err.message,false);}
-});
+function setCamUI(state){camDot.className='';if(state==='live'){camDot.classList.add('live');camLabel.textContent='live';}else if(state==='scanning'){camDot.classList.add('live');camLabel.textContent='сканування';}else{camLabel.textContent=state;}}
 
-document.getElementById('capBtn').addEventListener('click',()=>{
-  if(!stream)return;
-  const tmp=document.createElement('canvas');
-  tmp.width=vid.videoWidth||640;tmp.height=vid.videoHeight||480;
-  tmp.getContext('2d').drawImage(vid,0,0);
-  const img=new Image();
-  img.onload=()=>setTimeout(()=>processImage(img,1),30);
-  img.src=tmp.toDataURL('image/jpeg',0.92);
-});
+async function startCamera(){
+  try{cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});vid.srcObject=cameraStream;await new Promise(r=>{vid.onloadedmetadata=r});await vid.play();vid.classList.add('show');cnvMain.style.display='none';scanRing.classList.add('show');frameCounter.style.display='block';document.getElementById('camBtn').style.display='none';document.getElementById('stopBtn').style.display='inline';setCamUI('live');setSt('◎ камера запущена…','');beginScanCycle();}catch(err){Le('Камера: '+err.message);setSt('✗ '+err.message,'err');}
+}
+function stopCamera(){cameraRunning=false;if(cameraTimer){clearTimeout(cameraTimer);cameraTimer=null;}if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}vid.classList.remove('show');cnvMain.style.display='block';scanRing.classList.remove('show');frameCounter.style.display='none';progressFill.style.width='0%';document.getElementById('camBtn').style.display='inline';document.getElementById('stopBtn').style.display='none';setCamUI('очікування');}
+function captureFrame(){if(!cameraStream||!vid.videoWidth)return null;const vw=vid.videoWidth,vh=vid.videoHeight;const tmp=document.createElement('canvas');tmp.width=vw;tmp.height=vh;tmp.getContext('2d').drawImage(vid,0,0,vw,vh);return tmp;}
 
-document.getElementById('stopBtn').addEventListener('click',()=>{
-  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
-  vidWrap.style.display='none';mainCnv.style.display='block';
-  document.getElementById('camBtn').style.display='inline';
-  document.getElementById('capBtn').style.display='none';
-  document.getElementById('stopBtn').style.display='none';
-  setSt('— очікування —',null);
+function beginScanCycle(){
+  cameraRunning=true;let frameIdx=0,bestResult=null,bestConf=0;
+  function doFrame(){
+    if(!cameraRunning)return;frameIdx++;frameCounter.textContent=frameIdx+'/'+TOTAL_FRAMES;progressFill.style.width=((frameIdx-1)/TOTAL_FRAMES*100)+'%';setCamUI('scanning');setSt('⌛ кадр '+frameIdx+'/'+TOTAL_FRAMES+'…','');
+    const frameCnv=captureFrame();if(!frameCnv){scheduleNext();return;}
+    setTimeout(()=>{
+      try{
+        const vw=frameCnv.width,vh=frameCnv.height,maxSide=1200,scale=maxSide/Math.max(vw,vh);const nw=scale<1?Math.round(vw*scale):vw,nh=scale<1?Math.round(vh*scale):vh;
+        const tmp=document.createElement('canvas');tmp.width=nw;tmp.height=nh;tmp.getContext('2d').drawImage(frameCnv,0,0,nw,nh);
+        const idata=tmp.getContext('2d').getImageData(0,0,nw,nh);
+        const bl=gaussianBlur(idata,nw,nh,1),sh=unsharp(bl,nw,nh,0.7),lc=localContrast(sh,nw,nh,40);
+        const log=frameIdx===1;if(log){clrLog();Lh('КАДР '+frameIdx);}
+        let result=fullScan(sh,nw,nh,log);
+        if(!result||(result&&(!result.decoded||!result.decoded.text))){
+          if(log)Lh('→ спроба localContrast');const result2=fullScan(lc,nw,nh,false);
+          if(result2&&result2.confidence>(result?result.confidence:0))result=result2;
+        }
+        if(result&&result.confidence>bestConf){bestConf=result.confidence;bestResult=result;if(log&&result.decoded&&result.decoded.text)Lok('BEST: "'+result.decoded.text+'"');}
+        updateDiag(result,frameIdx,TOTAL_FRAMES);progressFill.style.width=(frameIdx/TOTAL_FRAMES*100)+'%';
+        if(bestResult&&bestResult.decoded&&bestResult.decoded.text&&bestResult.confidence>0.35){finishScan(bestResult);return;}
+        if(frameIdx>=TOTAL_FRAMES){finishScan(bestResult);return;}
+        scheduleNext();
+      }catch(err){Le('кадр помилка: '+err.message);scheduleNext();}
+    },20);
+  }
+  function scheduleNext(){if(!cameraRunning)return;cameraTimer=setTimeout(doFrame,FRAME_INTERVAL);}
+  function finishScan(result){
+    progressFill.style.width='100%';
+    if(result&&result.decoded&&result.decoded.text){vid.classList.remove('show');cnvMain.style.display='block';scanRing.classList.remove('show');drawResult(result);buildRGBPanel(result);setSt('✓ TAINA: "'+result.decoded.text+'"','ok');setResult('"'+result.decoded.text+'"');Lok('═══ РЕЗУЛЬТАТ: "'+result.decoded.text+'" ['+result.decoded.type+'] ═══');beep();}
+    else if(result){setSt('⚠ рамку знайдено, декодування не вдалось','warn');setResult('');if(result)drawResult(result);}
+    else{setSt('✗ код не знайдено','err');setResult('');}
+    cameraRunning=false;document.getElementById('stopBtn').click();
+  }
+  cameraTimer=setTimeout(doFrame,500);
+}
+
+// ════════════════════════════════════════════════════════
+//  FILE PROCESSING  [v5 — unchanged]
+// ════════════════════════════════════════════════════════
+function processImageData(idata,w,h){
+  clrLog();setSt('⌛ обробка…','');setResult('');cnvMain.style.display='block';
+  const bl=gaussianBlur(idata,w,h,1),sh=unsharp(bl,w,h,0.7);
+  Lh('STAGE 1 → ROI');
+  let result=fullScan(sh,w,h,true);
+  if(!result||(result&&(!result.decoded||!result.decoded.text))){
+    Lh('→ спроба localContrast');const lc=localContrast(sh,w,h,40);const result2=fullScan(lc,w,h,false);
+    if(result2&&result2.confidence>(result?result.confidence:0))result=result2;
+  }
+  if(result){drawResult(result);buildRGBPanel(result);updateDiag(result);
+    if(result.decoded&&result.decoded.text){setSt('✓ TAINA: "'+result.decoded.text+'"','ok');setResult('"'+result.decoded.text+'"');Lok('═══ РЕЗУЛЬТАТ: "'+result.decoded.text+'" ['+result.decoded.type+'] ═══');}
+    else{setSt('⚠ рамку знайдено, декод не вдався','warn');Lw('zebra OK, T='+result.zebra.T+', декод null');}}
+  else{setSt('✗ код не знайдено','err');Le('рамку не виявлено');}
+}
+
+function processImage(img,orient){
+  let src;
+  if(orient&&orient!==1){src=applyExifRotation(img,orient);}else{src=document.createElement('canvas');src.width=img.naturalWidth;src.height=img.naturalHeight;src.getContext('2d').drawImage(img,0,0);}
+  const maxSide=1200,w=src.width,h=src.height,scale=Math.min(1,maxSide/Math.max(w,h));
+  const nw=Math.round(w*scale),nh=Math.round(h*scale);
+  const c=document.createElement('canvas');c.width=nw;c.height=nh;c.getContext('2d').drawImage(src,0,0,nw,nh);
+  processImageData(c.getContext('2d').getImageData(0,0,nw,nh),nw,nh);
+}
+
+// ════════════════════════════════════════════════════════
+//  SOUND + EVENTS
+// ════════════════════════════════════════════════════════
+function beep(){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(0.08,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.25);o.start();o.stop(ctx.currentTime+0.25);}catch(e){}}
+
+document.getElementById('fin').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;Li('Файл: '+f.name);
+  const reader=new FileReader();reader.onload=ev=>{const orient=getExifOrientation(ev.target.result);const img=new Image();img.onload=()=>setTimeout(()=>processImage(img,orient),30);img.src=URL.createObjectURL(f);};reader.readAsArrayBuffer(f);e.target.value='';
 });
+document.getElementById('camBtn').addEventListener('click',startCamera);
+document.getElementById('stopBtn').addEventListener('click',stopCamera);
 </script>
 </body>
 </html>
-
