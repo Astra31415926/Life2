@@ -567,53 +567,91 @@ function decodeCircles(circles,T,log=true){
  * і запускає Stage2: warp → verifyZebra → sampleCircles → decodeCircles
  * srcCanvas — оригінальний canvas з зображенням
  */
+function shrinkCorners(p, totalCells, shrinkCells){
+  // Зсуваємо кути всередину на shrinkCells ячейок Zebra
+  // p = [TL, TR, BR, BL] — зовнішні кути від Stage1
+  // Використовуємо білінійну інтерполяцію вздовж сторін
+  const N = totalCells;
+  const f = shrinkCells / N; // частка однієї ячейки від сторони
+
+  // Вектори вздовж сторін
+  const top  = {x: p[1].x - p[0].x, y: p[1].y - p[0].y}; // TL→TR
+  const bot  = {x: p[2].x - p[3].x, y: p[2].y - p[3].y}; // BL→BR
+  const left = {x: p[3].x - p[0].x, y: p[3].y - p[0].y}; // TL→BL
+  const right= {x: p[2].x - p[1].x, y: p[2].y - p[1].y}; // TR→BR
+
+  return {
+    tl: {x: p[0].x + top.x*f   + left.x*f,  y: p[0].y + top.y*f   + left.y*f},
+    tr: {x: p[1].x - top.x*f   + right.x*f, y: p[1].y - top.y*f   + right.y*f},
+    br: {x: p[2].x - bot.x*f   - right.x*f, y: p[2].y - bot.y*f   - right.y*f},
+    bl: {x: p[3].x + bot.x*f   - left.x*f,  y: p[3].y + bot.y*f   - left.y*f}
+  };
+}
+
 function runStage2(srcCanvas,s1result,verbose=true){
   const W=srcCanvas.width,H=srcCanvas.height;
   const idata=srcCanvas.getContext('2d').getImageData(0,0,W,H);
   const p=s1result.corners; // [TL,TR,BR,BL]
+  const N=s1result.totalCells; // кількість ячейок Zebra по периметру
 
-  // corners у форматі Stage2
-  const corners={
-    tl:{x:p[0].x,y:p[0].y},
-    tr:{x:p[1].x,y:p[1].y},
-    br:{x:p[2].x,y:p[2].y},
-    bl:{x:p[3].x,y:p[3].y}
-  };
+  // Спробуємо кілька варіантів відступу і виберемо кращий декод
+  // 0 = без відступу, 1 = 1 ячейка, 1.5, 2 — якщо є чорна рамка
+  const shrinkVariants = [0, 0.5, 1, 1.5, 2];
 
-  if(verbose){
-    Lh('STAGE 2 — варп + декод');
-    Li('кути: TL('+corners.tl.x+','+corners.tl.y+') TR('+corners.tr.x+','+corners.tr.y+')');
-    Li('       BR('+corners.br.x+','+corners.br.y+') BL('+corners.bl.x+','+corners.bl.y+')');
+  let bestResult = null;
+
+  for(const sh of shrinkVariants){
+    const corners = sh === 0
+      ? {tl:{x:p[0].x,y:p[0].y}, tr:{x:p[1].x,y:p[1].y}, br:{x:p[2].x,y:p[2].y}, bl:{x:p[3].x,y:p[3].y}}
+      : shrinkCorners(p, N, sh);
+
+    if(verbose) Li('спроба shrink='+sh+' TL('+Math.round(corners.tl.x)+','+Math.round(corners.tl.y)+')');
+
+    const warped=warpPerspectiveJS(idata,W,H,corners,S_WARP2);
+    if(!warped) continue;
+
+    const wGray=toGray(warped.data,S_WARP2,S_WARP2);
+    const zebra=verifyZebra(wGray,S_WARP2);
+    if(!zebra){if(verbose) Li('  → verifyZebra fail');continue;}
+
+    if(verbose) Li('  → T='+zebra.T+' conf='+zebra.confidence.toFixed(2)+' votes:'+zebra.voteStr);
+
+    const circles=sampleCircles(warped,S_WARP2,zebra.T,zebra.modSize);
+    const decoded=decodeCircles(circles,zebra.T,verbose);
+
+    const conf = (decoded&&decoded.text!==null)
+      ? zebra.confidence * (decoded.score||0.5) + 10  // текст є — великий бонус
+      : zebra.confidence * 0.1;
+
+    if(!bestResult || conf > bestResult.conf){
+      bestResult = {warped, zebra, circles, decoded, corners, conf, shrink: sh};
+    }
+
+    // Якщо вже маємо текст — достатньо
+    if(decoded && decoded.text !== null) break;
   }
 
-  // warp (чистий JS, без OpenCV)
-  const warped=warpPerspectiveJS(idata,W,H,corners,S_WARP2);
-  if(!warped){if(verbose)Le('warpPerspective fail');return null;}
-  if(verbose)Lok('warp OK → '+S_WARP2+'×'+S_WARP2);
+  if(!bestResult){
+    if(verbose) Le('всі варіанти shrink провалились');
+    drawStage1Result(srcCanvas, s1result);
+    return null;
+  }
+
+  if(verbose){
+    Lh('STAGE 2 — кращий варіант shrink='+bestResult.shrink);
+    Lok('zebra T='+bestResult.zebra.T+' modSize='+bestResult.zebra.modSize.toFixed(1)+' conf='+bestResult.zebra.confidence.toFixed(2));
+  }
 
   // показати варп у sidebar
-  showWarpPreview(warped,S_WARP2);
+  showWarpPreview(bestResult.warped, S_WARP2);
+  drawStage1Result(srcCanvas, s1result);
 
-  // verifyZebra
-  const wGray=toGray(warped.data,S_WARP2,S_WARP2);
-  const zebra=verifyZebra(wGray,S_WARP2);
-  if(!zebra){if(verbose)Le('verifyZebra fail');return null;}
-  if(verbose){
-    Lok('zebra OK: T='+zebra.T+' modSize='+zebra.modSize.toFixed(1)+' conf='+zebra.confidence.toFixed(2));
-    Li('votes: '+zebra.voteStr);
-  }
+  return bestResult;
 
-  // sampleCircles
-  const circles=sampleCircles(warped,S_WARP2,zebra.T,zebra.modSize);
-  if(verbose)Li('circles: '+(zebra.T-2)+'×'+(zebra.T-2)+' = '+circles.cells.length+' ячейок');
+  // sampleCircles для логу
+  if(verbose) Li('circles: '+(bestResult.zebra.T-2)+'×'+(bestResult.zebra.T-2)+' = '+bestResult.circles.cells.length+' ячейок');
 
-  // decodeCircles
-  const decoded=decodeCircles(circles,zebra.T,verbose);
-
-  // малювання на головному canvas
-  drawStage1Result(srcCanvas,s1result);
-
-  return{warped,zebra,circles,decoded,corners};
+  return bestResult;
 }
 
 // ════════════════════════════════════════════════════════
